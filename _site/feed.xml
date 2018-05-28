@@ -5,111 +5,101 @@
     <description>知行合一</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Mon, 28 May 2018 16:46:41 +0800</pubDate>
-    <lastBuildDate>Mon, 28 May 2018 16:46:41 +0800</lastBuildDate>
+    <pubDate>Mon, 28 May 2018 19:52:44 +0800</pubDate>
+    <lastBuildDate>Mon, 28 May 2018 19:52:44 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
         <title>Chromium智能指针使用指南</title>
-        <description>&lt;h4 id=&quot;什么是智能指针&quot;&gt;什么是智能指针？&lt;/h4&gt;
+        <description>&lt;h4&gt;什么是智能指针？&lt;/h4&gt;
 
 &lt;p&gt;智能指针是一种特殊类型的“局部对象”，表现如同裸指针，但是具备&lt;code&gt;离开作用域(out of scope)时主动释放所指向对象&lt;/code&gt;的能力。因为C++没有垃圾回收机制，因此智能指针的特性显得非常重要。&lt;/p&gt;
 
 &lt;p&gt;下面是最常用智能指针类型&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;的例子：&lt;/p&gt;
-
-&lt;pre&gt;&lt;code&gt;  // 我们可以在构造std::unique_prt&amp;lt;&amp;gt;的时候传入指针
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-&quot; data-lang=&quot;&quot;&gt;  // 我们可以在构造std::unique_prt&amp;lt;&amp;gt;的时候传入指针
   std::unique_ptr value(base::JSONReader::Read(data));
   std::unique_ptr foo_ptr(new Foo(...));
-  
+
   // ...或者使用reset()
   std::unique_ptr bar_ptr;      // 与 &quot;Bar* bar_ptr = nullptr;&quot; 相似.
   bar_ptr.reset(new Bar(...));  // 此时 |bar_ptr| 不为空且持有对象 
-  
+
   // 我们可以用 () 检查std::unique_ptr&amp;lt;&amp;gt;是否为空
   if (!value)
     return false;
-  
+
   // get() 访问持有的裸指针
   Foo* raw_ptr = foo_ptr.get();
-  
+
   // 我们可以像使用裸指针一样调用std::unique_ptr&amp;lt;&amp;gt;的方法
   DictionaryValue* dict;
   if (!value-&amp;gt;GetAsDictionary(&amp;amp;dict))
     return false;
-&lt;/code&gt;&lt;/pre&gt;
-
-&lt;h4 id=&quot;为什么我们要使用智能指针&quot;&gt;为什么我们要使用智能指针？&lt;/h4&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+&lt;h4&gt;为什么我们要使用智能指针？&lt;/h4&gt;
 
 &lt;p&gt;即使对象的创建和析构时机不确定，使用智能指针确保我们能正确释放对象。无论方法里有再多且逻辑复杂的路径，智能指针总能确保局部变量正确的释放，且能明确对象的所有权，避免程序内存泄漏或者对象重复释放。最后，在方法调用时，需要明确指出对象拥有权的转移和结果。&lt;/p&gt;
 
-&lt;h4 id=&quot;存在哪些类型的智能指针&quot;&gt;存在哪些类型的智能指针？&lt;/h4&gt;
+&lt;h4&gt;存在哪些类型的智能指针？&lt;/h4&gt;
 
 &lt;p&gt;在Chromium里最常用的两种智能指针类型是&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;和&lt;code&gt;scoped_refptr&amp;lt;&amp;gt;&lt;/code&gt;。前者适用于单一所有权的对象，后者适用于引用计数的对象（然而，通常应该避免使用引用计数的对象）。如果你比较熟悉C++11，会发现&lt;code&gt;scoepd_refptr&amp;lt;&amp;gt;&lt;/code&gt;和&lt;code&gt;std::shared_ptr&amp;lt;&amp;gt;&lt;/code&gt;用法很相似。&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://chromium.googlesource.com/chromium/src/+/master/base/memory/&quot;&gt;base/memory/&lt;/a&gt; 还定义了其余几种类型的对象：&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;&lt;code&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt; 用于在C++11之前存放智能指针对象，已被废弃。现在Chromium已经支持C++11了，我们不应该再使用&lt;code&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt;了，而应该在STL容器里使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
-  &lt;li&gt;&lt;code&gt;ScopedVector&amp;lt;&amp;gt;&lt;/code&gt;也被废弃了。它是一种vector，并且持有容器内对象的所有权。请使用&lt;code&gt;std::vector&amp;lt;std::unique_ptr&amp;lt;&amp;gt;&amp;gt;&lt;/code&gt;代替。&lt;/li&gt;
-  &lt;li&gt;&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;实际上不是智能指针。它的表现像指针类型，但是并不能用来自动释放对象，通常用作追踪其它地方拥有的对象是否依然存活，当追踪对象释放时，&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;会自动的置为&lt;code&gt;null&lt;/code&gt;。（但是依然需要在解引用前判断是否为&lt;code&gt;null&lt;/code&gt;，因为解引用&lt;code&gt;null WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等于于解引用&lt;code&gt;null&lt;/code&gt;，而不是no-op。）&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;与C++11的&lt;code&gt;std::weak_ptr&amp;lt;&amp;gt;&lt;/code&gt;作用比较相似，但是使用了不同的API并且少了许多使用限制。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt; 用于在C++11之前存放智能指针对象，已被废弃。现在Chromium已经支持C++11了，我们不应该再使用&lt;code&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt;了，而应该在STL容器里使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;ScopedVector&amp;lt;&amp;gt;&lt;/code&gt;也被废弃了。它是一种vector，并且持有容器内对象的所有权。请使用&lt;code&gt;std::vector&amp;lt;std::unique_ptr&amp;lt;&amp;gt;&amp;gt;&lt;/code&gt;代替。&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;实际上不是智能指针。它的表现像指针类型，但是并不能用来自动释放对象，通常用作追踪其它地方拥有的对象是否依然存活，当追踪对象释放时，&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;会自动的置为&lt;code&gt;null&lt;/code&gt;。（但是依然需要在解引用前判断是否为&lt;code&gt;null&lt;/code&gt;，因为解引用&lt;code&gt;null WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等于于解引用&lt;code&gt;null&lt;/code&gt;，而不是no-op。）&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;与C++11的&lt;code&gt;std::weak_ptr&amp;lt;&amp;gt;&lt;/code&gt;作用比较相似，但是使用了不同的API并且少了许多使用限制。&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h4 id=&quot;如何选择使用哪种智能指针&quot;&gt;如何选择使用哪种智能指针？&lt;/h4&gt;
+&lt;h4&gt;如何选择使用哪种智能指针？&lt;/h4&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;单一所有权的对象&lt;/strong&gt;。使用&lt;code&gt;std::unique_ptr&lt;/code&gt;。需要注意的是，&lt;code&gt;std::unique_ptr&lt;/code&gt;持有的需要必须是非引用计数的，并且分配在堆上的对象。&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;无所有权的对象&lt;/strong&gt;。使用裸指针或者&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。注意&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;只能在创建它的线程解引用（通常使用&lt;code&gt;WeakPtrFactory&amp;lt;&amp;gt;&lt;/code&gt;）。如果你需要在对象释放前后立刻执行某些操作，那么可能使用callback或notification更适合，而不是&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;引用计数的对象&lt;/strong&gt;。使用&lt;code&gt;scoped_refptr&amp;lt;&amp;gt;&lt;/code&gt;，但是最好是重新考虑使用引用计数对象是否合理。引用计数对象很难明确拥有权和析构顺序，特别是在多线程环境中。总是有方法来重新设计引对象层级来避免引用计数的。限制每个类都只能在单个线程工作，并且使用&lt;code&gt;PostTask()&lt;/code&gt;确保调用在正确的线程，这样有助于在多线程中避免引用计数。&lt;code&gt;base::Bind()&lt;/code&gt;，&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等工具具备在对象释放时自动取消方法调用的能力。Chromium中依然有许多代码在使用引用计数对象，如果你看见Chromium中有代码这样做但并不代表这是合理的解决方案。&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;平台特定类型&lt;/strong&gt;。使用平台特定的对象，譬如&lt;code&gt;base::win::ScopedHandle&lt;/code&gt;，&lt;code&gt;base::win::ScopedComPtr&lt;/code&gt;，或者&lt;code&gt;base::mac::ScopedCFTypeRef&lt;/code&gt;。需要注意的是这些类型使用方式可能和&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;不同。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;单一所有权的对象&lt;/strong&gt;。使用&lt;code&gt;std::unique_ptr&lt;/code&gt;。需要注意的是，&lt;code&gt;std::unique_ptr&lt;/code&gt;持有的需要必须是非引用计数的，并且分配在堆上的对象。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;无所有权的对象&lt;/strong&gt;。使用裸指针或者&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。注意&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;只能在创建它的线程解引用（通常使用&lt;code&gt;WeakPtrFactory&amp;lt;&amp;gt;&lt;/code&gt;）。如果你需要在对象释放前后立刻执行某些操作，那么可能使用callback或notification更适合，而不是&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;引用计数的对象&lt;/strong&gt;。使用&lt;code&gt;scoped_refptr&amp;lt;&amp;gt;&lt;/code&gt;，但是最好是重新考虑使用引用计数对象是否合理。引用计数对象很难明确拥有权和析构顺序，特别是在多线程环境中。总是有方法来重新设计引对象层级来避免引用计数的。限制每个类都只能在单个线程工作，并且使用&lt;code&gt;PostTask()&lt;/code&gt;确保调用在正确的线程，这样有助于在多线程中避免引用计数。&lt;code&gt;base::Bind()&lt;/code&gt;，&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等工具具备在对象释放时自动取消方法调用的能力。Chromium中依然有许多代码在使用引用计数对象，如果你看见Chromium中有代码这样做但并不代表这是合理的解决方案。&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;平台特定类型&lt;/strong&gt;。使用平台特定的对象，譬如&lt;code&gt;base::win::ScopedHandle&lt;/code&gt;，&lt;code&gt;base::win::ScopedComPtr&lt;/code&gt;，或者&lt;code&gt;base::mac::ScopedCFTypeRef&lt;/code&gt;。需要注意的是这些类型使用方式可能和&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;不同。&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h4 id=&quot;不同类型指针间调用规定是怎样的&quot;&gt;不同类型指针间调用规定是怎样的？&lt;/h4&gt;
+&lt;h4&gt;不同类型指针间调用规定是怎样的？&lt;/h4&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://www.chromium.org/developers/coding-style?pli=1#TOC-Object-ownership-and-calling-conventions&quot;&gt;calling conventions section of the Chromium style guide&lt;/a&gt;有规定。下面列出一些常用的规定。&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;
-    &lt;p&gt;如果方法参数里使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;	，说明该方法需占用传入参数的所有权，调用方需要使用&lt;code&gt;std::move()&lt;/code&gt;来表明转移对象的所有权。需要注意的是，临时对象不需要调用&lt;code&gt;std::move()&lt;/code&gt;转移所有权。&lt;/p&gt;
+&lt;li&gt;&lt;p&gt;如果方法参数里使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;    ，说明该方法需占用传入参数的所有权，调用方需要使用&lt;code&gt;std::move()&lt;/code&gt;来表明转移对象的所有权。需要注意的是，临时对象不需要调用&lt;code&gt;std::move()&lt;/code&gt;转移所有权。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-&quot; data-lang=&quot;&quot;&gt;// Foo() 拥有 |bar| 的所有权.
+void Foo(std::unique_ptr&amp;lt;Bar&amp;gt; bar);
 
-    &lt;pre&gt;&lt;code&gt;  // Foo() 拥有 |bar| 的所有权.
-  void Foo(std::unique_ptr&amp;lt;Bar&amp;gt; bar);
-    
-  ...
-  std::unique_ptr&amp;lt;Bar&amp;gt; bar_ptr(new Bar());
-  Foo(std::move(bar_ptr));          // 调用后，|bar_ptr| 被置为 null.
-  Foo(std::unique_ptr&amp;lt;Bar&amp;gt;(new Bar()));  // 临时对象不需要调用std::move()
-&lt;/code&gt;&lt;/pre&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;如果方法的返回值使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;，说明调用方需要持有返回对象的所有权。这种情况下，当且仅当返回对象类型和临时对象的类型不同时，需要使用&lt;code&gt;std::move()&lt;/code&gt;。&lt;/p&gt;
+...
+std::unique_ptr&amp;lt;Bar&amp;gt; bar_ptr(new Bar());
+Foo(std::move(bar_ptr));          // 调用后，|bar_ptr| 被置为 null.
+Foo(std::unique_ptr&amp;lt;Bar&amp;gt;(new Bar()));  // 临时对象不需要调用std::move()
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;如果方法的返回值使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;，说明调用方需要持有返回对象的所有权。这种情况下，当且仅当返回对象类型和临时对象的类型不同时，需要使用&lt;code&gt;std::move()&lt;/code&gt;。&lt;/p&gt;
+&lt;div class=&quot;highlight&quot;&gt;&lt;pre&gt;&lt;code class=&quot;language-&quot; data-lang=&quot;&quot;&gt;class Base { ... };
+class Derived : public Base { ... };
 
-    &lt;pre&gt;&lt;code&gt;  class Base { ... };
-  class Derived : public Base { ... };
-    
-  // Foo 拥有|base|的所有权, 调用方拥有 返回值对象 的所有权
-  std::unique_ptr&amp;lt;Base&amp;gt; Foo(std::unique_ptr&amp;lt;Base&amp;gt; base) {
-    if (cond) {
-      // 转移 |base| 的所有权给调用方
-      return base;                           
-    }
-      
-    // 注意这种场景下，方法运行结束时，|base|会被释放掉
-    if (cond2) {
-      // 临时对象不需要调用std::move()
-      return std::unique_ptr&amp;lt;Base&amp;gt;(new Base()));  
-    }
-    std::unique_ptr&amp;lt;Derived&amp;gt; derived(new Derived());
-    // 注意需要使用std::move()，因为|derived|的类型和返回值的类型不同。
-    return std::move(derived);
+// Foo 拥有|base|的所有权, 调用方拥有 返回值对象 的所有权
+std::unique_ptr&amp;lt;Base&amp;gt; Foo(std::unique_ptr&amp;lt;Base&amp;gt; base) {
+  if (cond) {
+    // 转移 |base| 的所有权给调用方
+    return base;                           
   }
-&lt;/code&gt;&lt;/pre&gt;
-  &lt;/li&gt;
-  &lt;li&gt;
-    &lt;p&gt;如果方法传入或者返回裸指针，表示无需所有权转移。Chromium在&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;存在之前写的一些代码，或者不熟悉所有权转移的程序员写的代码，可能会在传入或者返回裸指针的时候也使用&lt;code&gt;std::move()&lt;/code&gt;转移了所有权。但是这样做是不安全的，编译器并不能执行正确的表现。去掉这样的代码吧，方法传入或者返回裸指针时，绝对不要转移所有权。&lt;/p&gt;
-  &lt;/li&gt;
+
+  // 注意这种场景下，方法运行结束时，|base|会被释放掉
+  if (cond2) {
+    // 临时对象不需要调用std::move()
+    return std::unique_ptr&amp;lt;Base&amp;gt;(new Base()));  
+  }
+  std::unique_ptr&amp;lt;Derived&amp;gt; derived(new Derived());
+  // 注意需要使用std::move()，因为|derived|的类型和返回值的类型不同。
+  return std::move(derived);
+}
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;&lt;p&gt;如果方法传入或者返回裸指针，表示无需所有权转移。Chromium在&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;存在之前写的一些代码，或者不熟悉所有权转移的程序员写的代码，可能会在传入或者返回裸指针的时候也使用&lt;code&gt;std::move()&lt;/code&gt;转移了所有权。但是这样做是不安全的，编译器并不能执行正确的表现。去掉这样的代码吧，方法传入或者返回裸指针时，绝对不要转移所有权。&lt;/p&gt;&lt;/li&gt;
 &lt;/ul&gt;
 
-&lt;h4 id=&quot;可以通过引用传递参数或者返回值吗&quot;&gt;可以通过引用传递参数或者返回值吗？&lt;/h4&gt;
+&lt;h4&gt;可以通过引用传递参数或者返回值吗？&lt;/h4&gt;
 
 &lt;p&gt;不要这样做。&lt;/p&gt;
 
@@ -117,17 +107,17 @@
 
 &lt;p&gt;有个例外，在lambda表达式中，若将智能指针放在STL容器里作为参数传递，这里为了编译通过，必须使用&lt;code&gt;const std::unique_ptr&amp;lt;T&amp;gt; &amp;amp;&lt;/code&gt;。&lt;/p&gt;
 
-&lt;h4 id=&quot;我想使用stl容器用来持有指针对象此时可以用智能指针吗&quot;&gt;我想使用STL容器用来持有指针对象。此时可以用智能指针吗？&lt;/h4&gt;
+&lt;h4&gt;我想使用STL容器用来持有指针对象。此时可以用智能指针吗？&lt;/h4&gt;
 
 &lt;p&gt;可以。在C++11里，你可以将智能指针放入STL容器内。而且，不要再使用&lt;code&gt;ScopedVector&amp;lt;T&amp;gt;&lt;/code&gt;了，使用&lt;code&gt;std::vector&amp;lt;std::unique_ptr&amp;lt;T&amp;gt;&amp;gt;&lt;/code&gt;来替代。同样的，再也不要再使用&lt;code&gt;linked_ptr&amp;lt;T&amp;gt;&lt;/code&gt;了，直接把智能智能放在STL容器里使用即可。&lt;/p&gt;
 
-&lt;h4 id=&quot;引用资料&quot;&gt;引用资料&lt;/h4&gt;
+&lt;h4&gt;引用资料&lt;/h4&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;&lt;a href=&quot;http://stackoverflow.com/questions/106508/what-is-a-smart-pointer-and-when-should-i-use-one&quot;&gt;StackOverflow guide to smart pointers&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;http://en.wikipedia.org/wiki/Smart_pointer&quot;&gt;Wikipedia article on smart pointers&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;http://www.webkit.org/coding/RefPtr.html&quot;&gt;Guide to smart pointer usage in WebKit&lt;/a&gt;&lt;/li&gt;
-  &lt;li&gt;&lt;a href=&quot;https://www.chromium.org/developers/smart-pointer-guidelines&quot;&gt;Smart Pointer Guidelines&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://stackoverflow.com/questions/106508/what-is-a-smart-pointer-and-when-should-i-use-one&quot;&gt;StackOverflow guide to smart pointers&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://en.wikipedia.org/wiki/Smart_pointer&quot;&gt;Wikipedia article on smart pointers&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;http://www.webkit.org/coding/RefPtr.html&quot;&gt;Guide to smart pointer usage in WebKit&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a href=&quot;https://www.chromium.org/developers/smart-pointer-guidelines&quot;&gt;Smart Pointer Guidelines&lt;/a&gt;&lt;/li&gt;
 &lt;/ul&gt;
 </description>
         <pubDate>Mon, 28 May 2018 00:00:00 +0800</pubDate>
