@@ -9,26 +9,25 @@ tags: [C++]
 智能指针是一种特殊类型的“局部对象”，表现如同裸指针，但是具备`离开作用域(out of scope)时主动释放所指向对象`的能力。因为C++没有垃圾回收机制，因此智能指针的特性显得非常重要。
 
 下面是最常用智能指针类型`std::unique_ptr<>`的例子：
+```C++
+// 我们可以在构造std::unique_prt<>的时候传入指针
+std::unique_ptr value(base::JSONReader::Read(data));
+std::unique_ptr foo_ptr(new Foo(...));
 
-	  // 我们可以在构造std::unique_prt<>的时候传入指针
-	  std::unique_ptr value(base::JSONReader::Read(data));
-	  std::unique_ptr foo_ptr(new Foo(...));
-	  
-	  // ...或者使用reset()
-	  std::unique_ptr bar_ptr;      // 与 "Bar* bar_ptr = nullptr;" 相似.
-	  bar_ptr.reset(new Bar(...));  // 此时 |bar_ptr| 不为空且持有对象 
-	  
-	  // 我们可以用 () 检查std::unique_ptr<>是否为空
-	  if (!value)
-	    return false;
-	  
-	  // get() 访问持有的裸指针
-	  Foo* raw_ptr = foo_ptr.get();
-	  
-	  // 我们可以像使用裸指针一样调用std::unique_ptr<>的方法
-	  DictionaryValue* dict;
-	  if (!value->GetAsDictionary(&dict))
-	    return false;
+// ...或者使用reset()
+std::unique_ptr bar_ptr;      // 与 "Bar* bar_ptr = nullptr;" 相似.
+bar_ptr.reset(new Bar(...));  // 此时 |bar_ptr| 不为空且持有对象 
+
+// 我们可以用 () 检查std::unique_ptr<>是否为空
+if (!value) return false;
+
+// get() 访问持有的裸指针
+Foo* raw_ptr = foo_ptr.get();
+
+// 我们可以像使用裸指针一样调用std::unique_ptr<>的方法
+DictionaryValue* dict;
+if (!value->GetAsDictionary(&dict)) return false;
+```
 
 #### 为什么我们要使用智能指针？
 
@@ -56,37 +55,41 @@ tags: [C++]
 [calling conventions section of the Chromium style guide](https://www.chromium.org/developers/coding-style?pli=1#TOC-Object-ownership-and-calling-conventions)有规定。下面列出一些常用的规定。
 
 - 如果方法参数里使用`std::unique_ptr<>`	，说明该方法需占用传入参数的所有权，调用方需要使用`std::move()`来表明转移对象的所有权。需要注意的是，临时对象不需要调用`std::move()`转移所有权。
-	
-	    // Foo() 拥有 |bar| 的所有权.
-	    void Foo(std::unique_ptr<Bar> bar);
-	    
-	    ...
-	    std::unique_ptr<Bar> bar_ptr(new Bar());
-	    Foo(std::move(bar_ptr));          // 调用后，|bar_ptr| 被置为 null.
-	    Foo(std::unique_ptr<Bar>(new Bar()));  // 临时对象不需要调用std::move()
+
+```C++
+// Foo() 拥有 |bar| 的所有权.
+void Foo(std::unique_ptr<Bar> bar);
+
+...
+std::unique_ptr<Bar> bar_ptr(new Bar());
+Foo(std::move(bar_ptr));          // 调用后，|bar_ptr| 被置为 null.
+Foo(std::unique_ptr<Bar>(new Bar()));  // 临时对象不需要调用std::move()
+```
 
 - 如果方法的返回值使用`std::unique_ptr<>`，说明调用方需要持有返回对象的所有权。这种情况下，当且仅当返回对象类型和临时对象的类型不同时，需要使用`std::move()`。
-	
-	    class Base { ... };
-	    class Derived : public Base { ... };
-	    
-	    // Foo 拥有|base|的所有权, 调用方拥有 返回值对象 的所有权
-	    std::unique_ptr<Base> Foo(std::unique_ptr<Base> base) {
-	      if (cond) {
-	        // 转移 |base| 的所有权给调用方
-	        return base;                           
-	      }
-	      
-	      // 注意这种场景下，方法运行结束时，|base|会被释放掉
-	      if (cond2) {
-	        // 临时对象不需要调用std::move()
-	        return std::unique_ptr<Base>(new Base()));  
-	      }
-	      std::unique_ptr<Derived> derived(new Derived());
-	      // 注意需要使用std::move()，因为|derived|的类型和返回值的类型不同。
-	      return std::move(derived);
-	    }
-	
+
+```C++
+class Base { ... };
+class Derived : public Base { ... };
+
+// Foo 拥有|base|的所有权, 调用方拥有 返回值对象 的所有权
+std::unique_ptr<Base> Foo(std::unique_ptr<Base> base) {
+	if (cond) {
+    	// 转移 |base| 的所有权给调用方
+    	return base;                           
+  	}
+  
+  // 注意这种场景下，方法运行结束时，|base|会被释放掉
+  if (cond2) {
+    // 临时对象不需要调用std::move()
+    return std::unique_ptr<Base>(new Base()));  
+  }
+  std::unique_ptr<Derived> derived(new Derived());
+  // 注意需要使用std::move()，因为|derived|的类型和返回值的类型不同。
+  return std::move(derived);
+}
+```	
+
 - 如果方法传入或者返回裸指针，表示无需所有权转移。Chromium在`std::unique_ptr<>`存在之前写的一些代码，或者不熟悉所有权转移的程序员写的代码，可能会在传入或者返回裸指针的时候也使用`std::move()`转移了所有权。但是这样做是不安全的，编译器并不能执行正确的表现。去掉这样的代码吧，方法传入或者返回裸指针时，绝对不要转移所有权。
 
 #### 可以通过引用传递参数或者返回值吗？
