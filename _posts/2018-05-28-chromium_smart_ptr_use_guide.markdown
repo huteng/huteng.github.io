@@ -1,5 +1,5 @@
 ---
-layout: post
+layout: page
 category: "read"
 title:  "Chromium智能指针使用指南"
 tags: [C++]
