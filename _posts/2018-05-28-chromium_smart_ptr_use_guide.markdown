@@ -74,10 +74,10 @@ class Derived : public Base { ... };
 
 // Foo 拥有|base|的所有权, 调用方拥有 返回值对象 的所有权
 std::unique_ptr<Base> Foo(std::unique_ptr<Base> base) {
-	if (cond) {
-    	// 转移 |base| 的所有权给调用方
-    	return base;                           
-  	}
+  if (cond) {
+    // 转移 |base| 的所有权给调用方
+    return base;                           
+  }
   
   // 注意这种场景下，方法运行结束时，|base|会被释放掉
   if (cond2) {
