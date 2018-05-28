@@ -1,0 +1,49 @@
+# Basic
+title: ronhu
+subtitle: 知行合一
+# welcome_message: <a href="https://github.com/onevcat/vno-jekyll" target="_blank">Download the theme</a>
+#description: Vno Jekyll is a port of my Ghost theme vno.
+#creator: <a href="http://onev.cat">@onevcat</a>
+
+url: "http://ronhu.me"
+
+permalink: /:year/:month/:title/
+
+# Format
+highlighter: rouge
+
+# supported colors: blue, green, purple, red, orange or slate. If you need clear, leave it empty.
+cover_color: blue
+
+# The blog button should not be removed.
+blog_button:
+    title: 博客
+    description: 博客
+
+# Navigation buttons in the front page.
+#nav:
+#    - {title: 标签, description: 标签分组, url: 'http://project.onevcat.com'}
+    # - {title: Another Button, description: A button, url: 'http://example.com'}
+
+# Pagination
+gems: [jekyll-paginate]
+paginate: 10
+paginate_path: "page/:num/"
+
+# Comment
+#comment:
+#    disqus: vno-j	ekyll
+    # duoshuo: 
+    
+# Social
+social:
+#    weibo: onevcat
+#    github: onevcat
+#    twitter: onevcat
+#    gplus: 107108267983477358170
+    mail: ronhu@foxmail.com
+
+# Google Analytics
+#ga:
+    # id: your_ga_id
+    # host: your_host
