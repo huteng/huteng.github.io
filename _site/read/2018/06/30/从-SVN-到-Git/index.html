@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keyword"  content="ronhu, @ronhu, huteng, 胡腾, Blog, Github, 博客, 互联网, 前端, iOS, 产品, 胡腾的个人网站,  mobile, C++, Git">
+    <meta name="description" content="知行合一">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>从 SVN 到 Git - ronhu</title>
+
+    <link rel="canonical" href="http://localhost:4000/read/2018/06/30/%E4%BB%8E-SVN-%E5%88%B0-Git/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="//cdn.bootcss.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/ronhu.min.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+<link rel="alternate" type="application/rss+xml"
+  href="feed.xml" title="ronhu">
+    <!-- Custom Fonts -->
+    <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+	.ds-powered-by {
+		display:none !important ;
+	}
+	.ds-post-toolbar .ds-sync{
+		display:none !important ;
+	}
+    </style>
+</head>
+
+
+<body ontouchstart="">
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">ronhu</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">首页</a>
+                </li>
+
+<!--                 <li>
+                    <a href="/apps/">应用</a>
+                </li>
+
+                <li>
+                    <a href="/open/">开源</a>
+                </li>
+ -->
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+		<!--
+                
+                <li>
+                    <a href="/apps/">Apps</a>
+                </li>
+                
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+                
+                <li>
+                    <a href="/open/">Open</a>
+                </li>
+                
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+                
+		-->
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/home-bg.jpg')" >
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/#Git" title="Git">Git</a>
+                        
+                    </div>
+                    <h1>从 SVN 到 Git</h1>
+                    
+                    
+                    <h2 class="subheading"></h2>
+                    
+                    <span class="meta">Posted by ronhu on June 30, 2018</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+  <div class="container" style="overflow-y:hidden;">
+    <div class="row">
+      <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1 post-container">
+
+				<p>本文从 Git 与 SVN 的对比入手，介绍如何通过<code class="highlighter-rouge">Git-SVN</code>开始使用 Git，并总结平时工作高频率使用到的 Git 常用命令。</p>
+
+<h2 id="一git-vs-svn">一、Git vs SVN</h2>
+<blockquote>
+  <p>Git 和 SVN 孰优孰好，每个人有不同的体验。</p>
+</blockquote>
+
+<h3 id="git是分布式的svn是集中式的">Git是分布式的，SVN是集中式的</h3>
+<p>这是 Git 和 SVN 最大的区别。若能掌握这个概念，两者区别基本搞懂大半。因为 Git 是分布式的，所以 Git 支持离线工作，在本地可以进行很多操作，包括接下来将要重磅推出的分支功能。而 SVN 必须联网才能正常工作。</p>
+
+<h3 id="git复杂概念多svn简单易上手">Git复杂概念多，SVN简单易上手</h3>
+<p>所有同时掌握 Git 和 SVN 的开发者都必须承认，Git 的命令实在太多了，日常工作需要掌握<code class="highlighter-rouge">add</code>,<code class="highlighter-rouge">commit</code>,<code class="highlighter-rouge">status</code>,<code class="highlighter-rouge">fetch</code>,<code class="highlighter-rouge">push</code>,<code class="highlighter-rouge">rebase</code>等，若要熟练掌握，还必须掌握<code class="highlighter-rouge">rebase</code>和<code class="highlighter-rouge">merge</code>的区别，<code class="highlighter-rouge">fetch</code>和<code class="highlighter-rouge">pull</code>的区别等，除此之外，还有<code class="highlighter-rouge">cherry-pick</code>，<code class="highlighter-rouge">submodule</code>，<code class="highlighter-rouge">stash</code>等功能，仅是这些名词听着都很绕。</p>
+
+<p>在易用性这方面，SVN 会好得多，简单易上手，对新手很友好。但是从另外一方面看，Git 命令多意味着功能多，若我们能掌握大部分 Git 的功能，体会到其中的奥妙，会发现再也回不去 SVN 的时代了。</p>
+
+<h3 id="git分支廉价svn分支昂贵">Git分支廉价，SVN分支昂贵</h3>
+<p>在版本管理里，分支是很常使用的功能。在发布版本前，需要发布分支，进行大需求开发，需要 feature 分支，大团队还会有开发分支，稳定分支等。在大团队开发过程中，常常存在创建分支，切换分支的需求。</p>
+
+<p>Git 分支是指针指向某次提交，而 SVN 分支是拷贝的目录。这个特性使 Git 的分支切换非常迅速，且创建成本非常低。</p>
+
+<p>而且 Git 有本地分支，SVN 无本地分支。在实际开发过程中，经常会遇到有些代码没写完，但是需紧急处理其他问题，若我们使用 Git，便可以创建本地分支存储没写完的代码，待问题处理完后，再回到本地分支继续完成代码。</p>
+
+<h2 id="二git-核心概念">二、Git 核心概念</h2>
+<p>Git 最核心的一个概念就是工作流。</p>
+
+<ul>
+  <li>工作区(Workspace)是电脑中实际的目录。</li>
+  <li>暂存区(Index)类似于缓存区域，临时保存你的改动。</li>
+  <li>仓库区(Repository)，分为本地仓库和远程仓库。</li>
+</ul>
+
+<p>从 SVN 切换到 Git，最难理解并且最不能理解的是暂存区和本地仓库。熟练使用 Git 后，会发现这简直是神设计，由于这两者的存在，使许多工作变得易管理。</p>
+
+<p>通常提交代码分为几步：</p>
+
+<ol>
+  <li><code class="highlighter-rouge">git add</code>从工作区提交到暂存区</li>
+  <li><code class="highlighter-rouge">git commit</code>从暂存区提交到本地仓库</li>
+  <li><code class="highlighter-rouge">git push</code>或<code class="highlighter-rouge">git svn dcommit</code>从本地仓库提交到远程仓库</li>
+</ol>
+
+<p>一般来说，记住以下命令，便可进行日常工作了（图片来源于网络）：
+<img src="http://ronhu.me/img/git.jpg" alt="git.jpg" /></p>
+
+<h2 id="三git-svn常用命令">三、Git-SVN常用命令</h2>
+<blockquote>
+  <p>本节命令针对使用 Git-SVN 的开发者，请务必掌握。</p>
+</blockquote>
+
+<p>若服务器使用的 SVN，但是本地想要体验 Git 的本地分支，离线操作等功能，可以使用 <code class="highlighter-rouge">Git-SVN</code>功能。</p>
+
+<p>常用操作如下（图片来源于网络）：
+<img src="http://ronhu.me/img/git-svn-workflow.png" alt="git-svn workflow" /></p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 下载一个 SVN 项目和它的整个代码历史，并初始化为 Git 代码库
+$ git svn clone -s [repository]
+
+# 查看当前版本库情况
+$ git svn info
+
+# 取回远程仓库所有分支的变化
+$ git svn fetch
+
+# 取回远程仓库当前分支的变化，并与本地分支变基合并
+$ git svn rebase 
+
+# 上传当前分支的本地仓库到远程仓库
+$ git svn dcommit
+
+# 拉取新分支，并提交到远程仓库
+$ svn copy [remote_branch] [new_remote_branch] -m [message]
+
+# 创建远程分支对应的本地分支
+$ git checkout -b [local_branch] [remote_branch]
+
+</code></pre></div></div>
+
+<h2 id="四初始化">四、初始化</h2>
+<blockquote>
+  <p>从本节开始，除特殊说明，以下命令均适用于 Git 与 <code class="highlighter-rouge">Git-SVN</code>。</p>
+</blockquote>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 在当前目录新建一个Git代码库
+$ git init
+
+# 下载一个项目和它的整个代码历史 [Git only]
+$ git clone [url]
+</code></pre></div></div>
+<h2 id="五配置">五、配置</h2>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 列举所有配置
+$ git config -l
+
+# 为命令配置别名
+$ git config --global alias.co checkout
+$ git config --global alias.ci commit
+$ git config --global alias.st status
+$ git config --global alias.br branch
+
+# 设置提交代码时的用户信息
+$ git config [--global] user.name "[name]"
+$ git config [--global] user.email "[email address]"
+
+</code></pre></div></div>
+<p>Git 用户的配置文件位于 <code class="highlighter-rouge">~/.gitconfig </code></p>
+
+<p>Git 单个仓库的配置文件位于 <code class="highlighter-rouge">~/$PROJECT_PATH/.git/config</code></p>
+
+<h2 id="六增删文件">六、增删文件</h2>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 添加当前目录的所有文件到暂存区
+$ git add .
+
+# 添加指定文件到暂存区
+$ git add &lt;file1&gt; &lt;file2&gt; ...
+
+# 添加指定目录到暂存区，包括其子目录
+$ git add &lt;dir&gt;
+
+# 删除工作区文件，并且将这次删除放入暂存区
+$ git rm [file1] [file2] ...
+
+# 停止追踪指定文件，但该文件会保留在工作区
+$ git rm --cached [file]
+
+# 改名文件，并且将这个改名放入暂存区
+$ git mv [file-original] [file-renamed]
+
+</code></pre></div></div>
+<p>把文件名 file1 添加到 .gitignore 文件里，Git 会停止跟踪 file1 的状态。</p>
+
+<h2 id="七分支">七、分支</h2>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 列出所有本地分支
+$ git branch
+
+# 列出所有本地分支和远程分支
+$ git branch -a
+
+# 新建一个分支，但依然停留在当前分支
+$ git branch [branch-name]
+
+# 新建一个分支，并切换到该分支
+$ git checkout -b [new_branch] [remote-branch]
+
+# 切换到指定分支，并更新工作区
+$ git checkout [branch-name]
+
+# 合并指定分支到当前分支
+$ git merge [branch]
+
+# 选择一个 commit，合并进当前分支
+$ git cherry-pick [commit]
+
+# 删除分支，-D 参数强制删除分支
+$ git branch -d [branch-name]
+
+</code></pre></div></div>
+
+<h2 id="八提交">八、提交</h2>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 提交暂存区到仓库区
+$ git commit -m [message]
+
+# 提交工作区与暂存区的变化直接到仓库区
+$ git commit -a
+
+# 提交时显示所有 diff 信息
+$ git commit -v
+
+# 提交暂存区修改到仓库区，合并到上次修改，并修改上次的提交信息
+$ git commit --amend -m [message]
+
+# 上传本地指定分支到远程仓库
+$ git push [remote] [branch]
+</code></pre></div></div>
+
+<h2 id="九拉取">九、拉取</h2>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 下载远程仓库的所有变动 [Git only]
+$ git fetch [remote]
+
+# 显示所有远程仓库 [Git only]
+$ git remote -v
+
+# 显示某个远程仓库的信息 [Git only]
+$ git remote show [remote]
+
+# 增加一个新的远程仓库，并命名 [Git only]
+$ git remote add [remote-name] [url]
+
+# 取回远程仓库的变化，并与本地分支合并，[Git only], 若使用 Git-SVN，请查看第三节
+$ git pull [remote] [branch]
+
+# 取回远程仓库的变化，并与本地分支变基合并，[Git only], 若使用 Git-SVN，请查看第三节
+$ git pull --rebase [remote] [branch]
+
+</code></pre></div></div>
+
+<h2 id="十撤销">十、撤销</h2>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 恢复暂存区的指定文件到工作区
+$ git checkout [file]
+
+# 恢复暂存区当前目录的所有文件到工作区
+$ git checkout .
+
+# 恢复工作区到指定 commit
+$ git checkout [commit]
+
+# 重置暂存区的指定文件，与上一次 commit 保持一致，但工作区不变
+$ git reset [file]
+
+# 重置暂存区与工作区，与上一次 commit 保持一致
+$ git reset --hard
+
+# 重置当前分支的指针为指定 commit，同时重置暂存区，但工作区不变
+$ git reset [commit]
+
+# 重置当前分支的HEAD为指定 commit，同时重置暂存区和工作区，与指定 commit 一致
+$ git reset --hard [commit]
+
+# 新建一个 commit，用于撤销指定 commit
+$ git revert [commit]
+
+# 将未提交的变化放在储藏区
+$ git stash
+
+# 将储藏区的内容恢复到当前工作区
+$ git stash pop
+</code></pre></div></div>
+
+<h2 id="十一查询">十一、查询</h2>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 查看工作区文件修改状态
+$ git status               
+
+# 查看工作区文件修改具体内容   
+$ git diff [file]
+
+# 查看暂存区文件修改内容
+$ git diff --cached [file] 
+
+# 查看版本库修改记录
+$ git log                  
+
+# 查看某人提交记录
+$ git log --author=someone 
+
+# 查看某个文件的历史具体修改内容
+$ git log -p [file]        
+
+# 查看某次提交具体修改内容
+$ git show [commit]         
+</code></pre></div></div>
+
+<h2 id="十二其他">十二、其他</h2>
+<h3 id="写在后面">写在后面</h3>
+<p>从 SVN 到 Git，除本文列举的基础概念和常用命令，包括但不限于<code class="highlighter-rouge">如何从 SVN 服务器切换到 Git 服务器</code>，<code class="highlighter-rouge">分支模型管理</code>等也非常重要。本文篇幅有限，针对没有介绍到但很重要的知识点会列举到参考资料里，希望作为本文的延伸阅读。</p>
+
+<h3 id="参考资料">参考资料</h3>
+<ol>
+  <li><a href="https://git-scm.com/book/zh/v2">Git Pro Books</a> Git 权威指南</li>
+  <li><a href="http://www.worldhello.net/gotgit/04-git-model/070-git-svn.html">Git和SVN协同模型</a> 详细介绍 Git-SVN 协同模型的使用原理与注意点</li>
+  <li><a href="http://www.ruanyifeng.com/blog/2015/12/git-cheat-sheet.html">常用 Git 命令清单</a> 总结得非常详细的清单，与本文部分内容重合并互补</li>
+  <li><a href="https://github.com/xirong/my-git/blob/master/why-git.md">SVN 和 Git 在日常使用中的明显差异</a> 介绍了 Git 和 SVN 的区别，可作为本文的延伸阅读</li>
+  <li><a href="https://www.git-tower.com/learn/git/ebook/cn/command-line/advanced-topics/git-flow">git-flow 的工作流程</a> 通俗易懂的介绍了 git-flow 的基础工作流程</li>
+  <li><a href="https://git-scm.com/book/zh/v2/Git-%E4%B8%8E%E5%85%B6%E4%BB%96%E7%B3%BB%E7%BB%9F-%E8%BF%81%E7%A7%BB%E5%88%B0-Git">SVN 迁移到 Git</a> 服务器从 SVN 迁移到 Git 的具体操作方法</li>
+</ol>
+
+
+        <hr>
+      </div>
+      
+      <!-- 畅言评论框 start-->
+      <div id="SOHUCS" ></div>
+      <script type="text/javascript">
+      (function(){
+      var appid = ;
+      var conf = ;
+      var width = window.innerWidth || document.documentElement.clientWidth;
+      if (width < 960) {
+      window.document.write('<script id="changyan_mobile_js" charset="utf-8" type="text/javascript" src="https://changyan.sohu.com/upload/mobile/wap-js/changyan_mobile.js?client_id=' + appid + '&conf=' + conf + '"><\/script>'); } else { var loadJs=function(d,a){var c=document.getElementsByTagName("head")[0]||document.head||document.documentElement;var b=document.createElement("script");b.setAttribute("type","text/javascript");b.setAttribute("charset","UTF-8");b.setAttribute("src",d);if(typeof a==="function"){if(window.attachEvent){b.onreadystatechange=function(){var e=b.readyState;if(e==="loaded"||e==="complete"){b.onreadystatechange=null;a()}}}else{b.onload=a}}c.appendChild(b)};loadJs("https://changyan.sohu.com/upload/changyan.js",function(){window.changyan.api.config({appid:appid,conf:conf})}); } })(); </script>
+       <!-- 畅言评论框 end -->
+    </div>
+  </div>
+</article>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+
+                    
+
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; ronhu 2018</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="//cdn.bootcss.com/jquery/2.2.2/jquery.min.js"></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="//cdn.bootcss.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/ronhu.min.js "></script>
+
+<!-- TODO: only load in tag.html -->
+<script src="/js/jquery.tagcloud.js" type="text/javascript" charset="utf-8"></script>
+<script language="javascript">
+    $.fn.tagcloud.defaults = {
+        //size: {start: 1, end: 1, unit: 'em'},
+        color: {start: '#bbbbee', end: '#0085a1'},
+    };
+    $(function () {
+        $('#tag_cloud a').tagcloud();
+    });
+</script>
+
+<!-- async load function -->
+<script>
+    function async(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+<!-- Highlight.js -->
+<script>
+    async("//cdn.bootcss.com/highlight.js/9.4.0/highlight.min.js",function(){
+        hljs.initHighlightingOnLoad();
+    })
+</script>
+<link href="//cdn.bootcss.com/highlight.js/9.4.0/styles/github.min.css" rel="stylesheet">
+
+<div class="cb-search-tool" style="position: fixed; top: 0px ; bottom: 0px; left: 0px; right:  0px;
+      opacity: 0.95; background-color: #111111; z-index: 9999; display: none;">
+    <input type="text" class="form-control cb-search-content" id="cb-search-content" style="position: fixed; top: 60px" placeholder="文章标题 日期 标签" >
+
+    <div style="position: fixed; top: 16px; right: 16px;">
+        <img src="/search/img/cb-close.png"  id="cb-close-btn"/>
+    </div>
+</div>
+
+<div style="position: fixed; right: 16px; bottom: 20px;">
+    <img src="/search/img/cb-search.png"  id="cb-search-btn"  title="双击ctrl试一下"/>
+</div>
+
+<link rel="stylesheet" href="/search/css/cb-search.css">
+
+<script src="/search/js/bootstrap3-typeahead.min.js"></script>
+<script src="/search/js/cb-search.js"></script>
+
+<script>
+$(document).ready(function(){
+  //代码高亮自定义
+  $("code").each(function(){
+    var content =  $(this).html().replace(/\n/g,"\n</li><li>");
+    if(content.indexOf('<li>') == -1){
+      //适配`abc`，放行
+    }else{
+        $(this).html("<ul><li>" + content.substring(0, content.length - 4) +"</ul>"); //适配```
+    }
+  });
+})
+</script>
+
+<div style="display:none;">
+  <script src="//s19.cnzz.com/z_stat.php?id=1000478693&web_id=1000478693" language="JavaScript"></script>
+</div>
+
+
+</body>
+
+</html>

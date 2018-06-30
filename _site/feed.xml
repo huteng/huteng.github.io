@@ -5,9 +5,285 @@
     <description>知行合一</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Wed, 06 Jun 2018 23:46:58 +0800</pubDate>
-    <lastBuildDate>Wed, 06 Jun 2018 23:46:58 +0800</lastBuildDate>
+    <pubDate>Sat, 30 Jun 2018 16:38:46 +0800</pubDate>
+    <lastBuildDate>Sat, 30 Jun 2018 16:38:46 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
+    
+      <item>
+        <title>从 SVN 到 Git</title>
+        <description>&lt;p&gt;本文从 Git 与 SVN 的对比入手，介绍如何通过&lt;code class=&quot;highlighter-rouge&quot;&gt;Git-SVN&lt;/code&gt;开始使用 Git，并总结平时工作高频率使用到的 Git 常用命令。&lt;/p&gt;
+
+&lt;h2 id=&quot;一git-vs-svn&quot;&gt;一、Git vs SVN&lt;/h2&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;Git 和 SVN 孰优孰好，每个人有不同的体验。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;h3 id=&quot;git是分布式的svn是集中式的&quot;&gt;Git是分布式的，SVN是集中式的&lt;/h3&gt;
+&lt;p&gt;这是 Git 和 SVN 最大的区别。若能掌握这个概念，两者区别基本搞懂大半。因为 Git 是分布式的，所以 Git 支持离线工作，在本地可以进行很多操作，包括接下来将要重磅推出的分支功能。而 SVN 必须联网才能正常工作。&lt;/p&gt;
+
+&lt;h3 id=&quot;git复杂概念多svn简单易上手&quot;&gt;Git复杂概念多，SVN简单易上手&lt;/h3&gt;
+&lt;p&gt;所有同时掌握 Git 和 SVN 的开发者都必须承认，Git 的命令实在太多了，日常工作需要掌握&lt;code class=&quot;highlighter-rouge&quot;&gt;add&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;commit&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;status&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;fetch&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;push&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;rebase&lt;/code&gt;等，若要熟练掌握，还必须掌握&lt;code class=&quot;highlighter-rouge&quot;&gt;rebase&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;merge&lt;/code&gt;的区别，&lt;code class=&quot;highlighter-rouge&quot;&gt;fetch&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;pull&lt;/code&gt;的区别等，除此之外，还有&lt;code class=&quot;highlighter-rouge&quot;&gt;cherry-pick&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;submodule&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;stash&lt;/code&gt;等功能，仅是这些名词听着都很绕。&lt;/p&gt;
+
+&lt;p&gt;在易用性这方面，SVN 会好得多，简单易上手，对新手很友好。但是从另外一方面看，Git 命令多意味着功能多，若我们能掌握大部分 Git 的功能，体会到其中的奥妙，会发现再也回不去 SVN 的时代了。&lt;/p&gt;
+
+&lt;h3 id=&quot;git分支廉价svn分支昂贵&quot;&gt;Git分支廉价，SVN分支昂贵&lt;/h3&gt;
+&lt;p&gt;在版本管理里，分支是很常使用的功能。在发布版本前，需要发布分支，进行大需求开发，需要 feature 分支，大团队还会有开发分支，稳定分支等。在大团队开发过程中，常常存在创建分支，切换分支的需求。&lt;/p&gt;
+
+&lt;p&gt;Git 分支是指针指向某次提交，而 SVN 分支是拷贝的目录。这个特性使 Git 的分支切换非常迅速，且创建成本非常低。&lt;/p&gt;
+
+&lt;p&gt;而且 Git 有本地分支，SVN 无本地分支。在实际开发过程中，经常会遇到有些代码没写完，但是需紧急处理其他问题，若我们使用 Git，便可以创建本地分支存储没写完的代码，待问题处理完后，再回到本地分支继续完成代码。&lt;/p&gt;
+
+&lt;h2 id=&quot;二git-核心概念&quot;&gt;二、Git 核心概念&lt;/h2&gt;
+&lt;p&gt;Git 最核心的一个概念就是工作流。&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;工作区(Workspace)是电脑中实际的目录。&lt;/li&gt;
+  &lt;li&gt;暂存区(Index)类似于缓存区域，临时保存你的改动。&lt;/li&gt;
+  &lt;li&gt;仓库区(Repository)，分为本地仓库和远程仓库。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;从 SVN 切换到 Git，最难理解并且最不能理解的是暂存区和本地仓库。熟练使用 Git 后，会发现这简直是神设计，由于这两者的存在，使许多工作变得易管理。&lt;/p&gt;
+
+&lt;p&gt;通常提交代码分为几步：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;git add&lt;/code&gt;从工作区提交到暂存区&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;git commit&lt;/code&gt;从暂存区提交到本地仓库&lt;/li&gt;
+  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;git push&lt;/code&gt;或&lt;code class=&quot;highlighter-rouge&quot;&gt;git svn dcommit&lt;/code&gt;从本地仓库提交到远程仓库&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;一般来说，记住以下命令，便可进行日常工作了（图片来源于网络）：
+&lt;img src=&quot;http://ronhu.me/img/git.jpg&quot; alt=&quot;git.jpg&quot; /&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;三git-svn常用命令&quot;&gt;三、Git-SVN常用命令&lt;/h2&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;本节命令针对使用 Git-SVN 的开发者，请务必掌握。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;p&gt;若服务器使用的 SVN，但是本地想要体验 Git 的本地分支，离线操作等功能，可以使用 &lt;code class=&quot;highlighter-rouge&quot;&gt;Git-SVN&lt;/code&gt;功能。&lt;/p&gt;
+
+&lt;p&gt;常用操作如下（图片来源于网络）：
+&lt;img src=&quot;http://ronhu.me/img/git-svn-workflow.png&quot; alt=&quot;git-svn workflow&quot; /&gt;&lt;/p&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 下载一个 SVN 项目和它的整个代码历史，并初始化为 Git 代码库
+$ git svn clone -s [repository]
+
+# 查看当前版本库情况
+$ git svn info
+
+# 取回远程仓库所有分支的变化
+$ git svn fetch
+
+# 取回远程仓库当前分支的变化，并与本地分支变基合并
+$ git svn rebase 
+
+# 上传当前分支的本地仓库到远程仓库
+$ git svn dcommit
+
+# 拉取新分支，并提交到远程仓库
+$ svn copy [remote_branch] [new_remote_branch] -m [message]
+
+# 创建远程分支对应的本地分支
+$ git checkout -b [local_branch] [remote_branch]
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;四初始化&quot;&gt;四、初始化&lt;/h2&gt;
+&lt;blockquote&gt;
+  &lt;p&gt;从本节开始，除特殊说明，以下命令均适用于 Git 与 &lt;code class=&quot;highlighter-rouge&quot;&gt;Git-SVN&lt;/code&gt;。&lt;/p&gt;
+&lt;/blockquote&gt;
+
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 在当前目录新建一个Git代码库
+$ git init
+
+# 下载一个项目和它的整个代码历史 [Git only]
+$ git clone [url]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;h2 id=&quot;五配置&quot;&gt;五、配置&lt;/h2&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 列举所有配置
+$ git config -l
+
+# 为命令配置别名
+$ git config --global alias.co checkout
+$ git config --global alias.ci commit
+$ git config --global alias.st status
+$ git config --global alias.br branch
+
+# 设置提交代码时的用户信息
+$ git config [--global] user.name &quot;[name]&quot;
+$ git config [--global] user.email &quot;[email address]&quot;
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;Git 用户的配置文件位于 &lt;code class=&quot;highlighter-rouge&quot;&gt;~/.gitconfig &lt;/code&gt;&lt;/p&gt;
+
+&lt;p&gt;Git 单个仓库的配置文件位于 &lt;code class=&quot;highlighter-rouge&quot;&gt;~/$PROJECT_PATH/.git/config&lt;/code&gt;&lt;/p&gt;
+
+&lt;h2 id=&quot;六增删文件&quot;&gt;六、增删文件&lt;/h2&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 添加当前目录的所有文件到暂存区
+$ git add .
+
+# 添加指定文件到暂存区
+$ git add &amp;lt;file1&amp;gt; &amp;lt;file2&amp;gt; ...
+
+# 添加指定目录到暂存区，包括其子目录
+$ git add &amp;lt;dir&amp;gt;
+
+# 删除工作区文件，并且将这次删除放入暂存区
+$ git rm [file1] [file2] ...
+
+# 停止追踪指定文件，但该文件会保留在工作区
+$ git rm --cached [file]
+
+# 改名文件，并且将这个改名放入暂存区
+$ git mv [file-original] [file-renamed]
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;p&gt;把文件名 file1 添加到 .gitignore 文件里，Git 会停止跟踪 file1 的状态。&lt;/p&gt;
+
+&lt;h2 id=&quot;七分支&quot;&gt;七、分支&lt;/h2&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 列出所有本地分支
+$ git branch
+
+# 列出所有本地分支和远程分支
+$ git branch -a
+
+# 新建一个分支，但依然停留在当前分支
+$ git branch [branch-name]
+
+# 新建一个分支，并切换到该分支
+$ git checkout -b [new_branch] [remote-branch]
+
+# 切换到指定分支，并更新工作区
+$ git checkout [branch-name]
+
+# 合并指定分支到当前分支
+$ git merge [branch]
+
+# 选择一个 commit，合并进当前分支
+$ git cherry-pick [commit]
+
+# 删除分支，-D 参数强制删除分支
+$ git branch -d [branch-name]
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;八提交&quot;&gt;八、提交&lt;/h2&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 提交暂存区到仓库区
+$ git commit -m [message]
+
+# 提交工作区与暂存区的变化直接到仓库区
+$ git commit -a
+
+# 提交时显示所有 diff 信息
+$ git commit -v
+
+# 提交暂存区修改到仓库区，合并到上次修改，并修改上次的提交信息
+$ git commit --amend -m [message]
+
+# 上传本地指定分支到远程仓库
+$ git push [remote] [branch]
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;九拉取&quot;&gt;九、拉取&lt;/h2&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 下载远程仓库的所有变动 [Git only]
+$ git fetch [remote]
+
+# 显示所有远程仓库 [Git only]
+$ git remote -v
+
+# 显示某个远程仓库的信息 [Git only]
+$ git remote show [remote]
+
+# 增加一个新的远程仓库，并命名 [Git only]
+$ git remote add [remote-name] [url]
+
+# 取回远程仓库的变化，并与本地分支合并，[Git only], 若使用 Git-SVN，请查看第三节
+$ git pull [remote] [branch]
+
+# 取回远程仓库的变化，并与本地分支变基合并，[Git only], 若使用 Git-SVN，请查看第三节
+$ git pull --rebase [remote] [branch]
+
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;十撤销&quot;&gt;十、撤销&lt;/h2&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 恢复暂存区的指定文件到工作区
+$ git checkout [file]
+
+# 恢复暂存区当前目录的所有文件到工作区
+$ git checkout .
+
+# 恢复工作区到指定 commit
+$ git checkout [commit]
+
+# 重置暂存区的指定文件，与上一次 commit 保持一致，但工作区不变
+$ git reset [file]
+
+# 重置暂存区与工作区，与上一次 commit 保持一致
+$ git reset --hard
+
+# 重置当前分支的指针为指定 commit，同时重置暂存区，但工作区不变
+$ git reset [commit]
+
+# 重置当前分支的HEAD为指定 commit，同时重置暂存区和工作区，与指定 commit 一致
+$ git reset --hard [commit]
+
+# 新建一个 commit，用于撤销指定 commit
+$ git revert [commit]
+
+# 将未提交的变化放在储藏区
+$ git stash
+
+# 将储藏区的内容恢复到当前工作区
+$ git stash pop
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;十一查询&quot;&gt;十一、查询&lt;/h2&gt;
+&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 查看工作区文件修改状态
+$ git status               
+
+# 查看工作区文件修改具体内容   
+$ git diff [file]
+
+# 查看暂存区文件修改内容
+$ git diff --cached [file] 
+
+# 查看版本库修改记录
+$ git log                  
+
+# 查看某人提交记录
+$ git log --author=someone 
+
+# 查看某个文件的历史具体修改内容
+$ git log -p [file]        
+
+# 查看某次提交具体修改内容
+$ git show [commit]         
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;h2 id=&quot;十二其他&quot;&gt;十二、其他&lt;/h2&gt;
+&lt;h3 id=&quot;写在后面&quot;&gt;写在后面&lt;/h3&gt;
+&lt;p&gt;从 SVN 到 Git，除本文列举的基础概念和常用命令，包括但不限于&lt;code class=&quot;highlighter-rouge&quot;&gt;如何从 SVN 服务器切换到 Git 服务器&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;分支模型管理&lt;/code&gt;等也非常重要。本文篇幅有限，针对没有介绍到但很重要的知识点会列举到参考资料里，希望作为本文的延伸阅读。&lt;/p&gt;
+
+&lt;h3 id=&quot;参考资料&quot;&gt;参考资料&lt;/h3&gt;
+&lt;ol&gt;
+  &lt;li&gt;&lt;a href=&quot;https://git-scm.com/book/zh/v2&quot;&gt;Git Pro Books&lt;/a&gt; Git 权威指南&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.worldhello.net/gotgit/04-git-model/070-git-svn.html&quot;&gt;Git和SVN协同模型&lt;/a&gt; 详细介绍 Git-SVN 协同模型的使用原理与注意点&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;http://www.ruanyifeng.com/blog/2015/12/git-cheat-sheet.html&quot;&gt;常用 Git 命令清单&lt;/a&gt; 总结得非常详细的清单，与本文部分内容重合并互补&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://github.com/xirong/my-git/blob/master/why-git.md&quot;&gt;SVN 和 Git 在日常使用中的明显差异&lt;/a&gt; 介绍了 Git 和 SVN 的区别，可作为本文的延伸阅读&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://www.git-tower.com/learn/git/ebook/cn/command-line/advanced-topics/git-flow&quot;&gt;git-flow 的工作流程&lt;/a&gt; 通俗易懂的介绍了 git-flow 的基础工作流程&lt;/li&gt;
+  &lt;li&gt;&lt;a href=&quot;https://git-scm.com/book/zh/v2/Git-%E4%B8%8E%E5%85%B6%E4%BB%96%E7%B3%BB%E7%BB%9F-%E8%BF%81%E7%A7%BB%E5%88%B0-Git&quot;&gt;SVN 迁移到 Git&lt;/a&gt; 服务器从 SVN 迁移到 Git 的具体操作方法&lt;/li&gt;
+&lt;/ol&gt;
+</description>
+        <pubDate>Sat, 30 Jun 2018 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/read/2018/06/30/%E4%BB%8E-SVN-%E5%88%B0-Git/</link>
+        <guid isPermaLink="true">http://localhost:4000/read/2018/06/30/%E4%BB%8E-SVN-%E5%88%B0-Git/</guid>
+        
+        <category>Git</category>
+        
+        
+        <category>read</category>
+        
+      </item>
     
       <item>
         <title>Chromium智能指针使用指南</title>
