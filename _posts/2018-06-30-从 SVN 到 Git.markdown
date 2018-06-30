@@ -1,10 +1,4 @@
----
-layout: post
-category: "read"
-title:  "从 SVN 到 Git"
-tags: [Git]
----
-
+#从 SVN 到 Git
 本文从 Git 与 SVN 的对比入手，介绍如何通过`Git-SVN`开始使用 Git，并总结平时工作高频率使用到的 Git 常用命令。
 
 ##一、Git vs SVN
