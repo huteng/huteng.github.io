@@ -1,13 +1,11 @@
 ---
-
 layout: post
 category: "read"
 title:  "Windows SDK 开发过程复盘与反思"
-tags: [Git]
-
+tags: [C++]
 ---
 
-###一. 背景
+### 一. 背景
 
 最近接到了一项任务，需要在短时间内封装一个Windows SDK 给外部用户使用。该 SDK 使用 wss 通道，经过一系列身份验证，获取 AuthCode 返回给调用者。分析这项工作对我主要有几个难点：
 
@@ -32,7 +30,7 @@ tags: [Git]
 
 ### 三. 过程记录
 
-####1. 开发环境配置
+#### 1. 开发环境配置
 
 下载了较为成熟的 Visual Studio 2013，并且配上了 ConEmu，并安装了 Git 、Python 等常用的命令行工具，在这一步上没有遇到太多问题。但是在使用 Visual Studio 2013 的过程中，采用的思路是自我探索，实际上踩了一些坑。如果一开始选择先花半个小时熟悉下基本操作和基本快捷键，会节约一些时间。
 
@@ -72,7 +70,7 @@ boost直接到[网址]([https://sourceforge.NET/projects/boost/files/boost-binar
 
 openSSL也到[网址](http://slproweb.com/products/Win32OpenSSL.html)下载编译好的版本。
 
-#####3.4 工程配置
+##### 3.4 工程配置
 
 1. 配置**包含目录**，找到对应的头文件，使代码`编译`通过。配置位置在`VC++目录->包含目录`
 2. 配置**库目录**，加载 `lib`静态库，使代码`链接`通过。配置位置在`C/C++->常规->附加包含目录`，`VC++目录->库目录`，`链接器->输入->附加依赖项`，`链接器->常规->附加库目录`，这几个地方都要检查。
@@ -84,7 +82,7 @@ openSSL也到[网址](http://slproweb.com/products/Win32OpenSSL.html)下载编�
 
 针对 Release 和 Debug 分别打包出.h、lib、dll。需要注意的是`.h`最好用 C 接口，若有回调函数，需加上`__stdcall`表明函数的调用方式。
 
-###四. 反思和复盘
+### 四. 反思和复盘
 
 在本次工作中，自己做得不好的几点：
 
