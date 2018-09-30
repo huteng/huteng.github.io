@@ -1,0 +1,208 @@
+---
+layout: post
+category: "read"
+title:  "GCD 基本使用"
+tags: [iOS]
+---
+
+### 为什么需要GCD？
+
+Grand Central Dispatch (GCD) 是异步执行任务的技术之一。
+
+GCD 主要目的是减少开发多线程的复杂性，降低多线程编程的代码量，从封装层面上减少多线程编程会遇到的问题。开发者定义任务追加到对应的队列中，使用时不再需要关心底层的线程调度，从而减低开发多线程编程的复杂性。
+
+### GCD API 使用
+
+#### Dispatch Queue
+
+开发者要做的只是定义想执行的任务并追加到适当的 Dispatch Queue 中。
+
+执行任务时，存在两种Dispatch Queue：
+
+1. Serial Dispatch Queue  串行队列
+2. Concurrent Dispatch Queue 并行队列
+
+需要注意的是 Concurrent Dispatch Queue 的队列数，系统会根据当前状态生成对应数量的线程。
+
+#### dispatch_queue_create
+
+```
+// 生成 Serial Dispatch Queue
+dispatch_queue_t mySerialDispatchQueue = dispatch_queue_create("com.example.gcd.mySerialDispatchQueue", NULL);
+
+// 生成 Concurrent Dispatch Queue
+dispatch_queue_t myConcurrentDispatchQueue = dispatch_queue_create("com.example.gcd.myConcurrentDispatchQueue", DISPATCH_QUEUE_CONCURRENT);
+
+// 执行串行任务
+dispatch_async(mySerialDispatchQueue, ^{ // do something });
+// 执行并行任务
+dispatch_async(myConcurrentDispatchQueue, ^{ // do something });
+```
+
+此处需要注意几点：
+
+1. dispatch_queue_create 创建 Serial Dispatch Queue 时，每创建一次，便会生成新的线程。大量的线程会消耗内存资源，引发大量的上下文切换，影响系统响应速度。
+2. dispatch_queue_create 创建 Concurrent Dispatch Queue 时，操作系统会根据当前内核情况进行线程管理，创建的线程数量由操作系统决定。所以，并非并行的任务就会立刻开始执行，并行队列的任务也会根据相应情况进行排队处理。
+3. iOS 6.0以后，不再需要调用 dispatch_release，可通过 OS_OBJECT_USE_OBJC 检查。
+
+#### Main Dispatch Queue / Global Dispatch Queue
+
+```
+// 获取主线程队列
+dispatch_queue_t mainDispatchQueue = dispatch_get_main_queue();
+// 获取 Concurrent Serial Queue
+dispatch_queue_t globalDispatchQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+```
+
+此处需要注意几点：
+
+1. dispatch_get_global_queue 有四种优先级：DISPATCH_QUEUE_PRIORITY_HIGH，DISPATCH_QUEUE_PRIORITY_DEFAULT，DISPATCH_QUEUE_PRIORITY_LOW，DISPATCH_QUEUE_PRIORITY_BACKGROUND。第二个参数是系统保留位，目前必须填0。
+2. dispatch_get_global_queue 获取的队列没有名字，所以调试起来会比较麻烦，所以需要调试的功能，dispatch_create_queue 是更为合适的方案，dispatch_create_queue 的 Concurrent Dispatch Queue 的优先级为 DEFAULT。
+
+#### dispatch_set_target_queue
+
+```
+// 改变队列的执行层级
+dispatch_set_target_queue(mySerialDispatchQueue, globalDispatchQueue);
+```
+
+#### dispatch_after
+
+```
+dispatch_time_t time = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC));
+dispatch_after(time, dispatch_get_main_queue(), ^{
+    // do something
+});
+```
+
+此处需要几点：
+
+1. dispatch_after的含义是延迟时间间隔将任务加入到队列中，所以实际执行的延迟时间并不一定是指定的延迟时间，而是根据当时的队列状况决定的。
+2. dispatch_walltime 可制定具体时间点。
+
+#### Dispatch Group
+
+```
+dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_group_t group = dispatch_group_create();
+dispatch_group_async(group, globalQueue, ^{ NSLog(@"1"); });
+dispatch_group_async(group, globalQueue, ^{ NSLog(@"2"); });
+dispatch_group_async(group, globalQueue, ^{ NSLog(@"3"); });
+
+// 等待任务1，2，3完成后调用
+dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+    NSLog(@"done");
+});
+```
+
+当任务1，2，3执行完毕后，会 notify 结束的 block，用于非阻塞等待的场景。
+
+若需要阻塞等待的场景，用下列方式：
+
+```
+// result 为0，则执行完毕，时间可指定DISPATCH_TIME_FOREVER，无限阻塞等待
+long result = dispatch_group_wait(group, 1ull * NSEC_PER_SEC);
+```
+
+#### dispatch_barrier_async
+
+```
+dispatch_queue_t queue = dispatch_queue_create("com.gcd.barrier.concurrentQueue", DISPATCH_QUEUE_CONCURRENT);
+dispatch_async(queue, blk1);
+dispatch_async(queue, blk2);
+dispatch_async(queue, blk3);
+dispatch_barrier_async(queue, barrierBlk);
+dispatch_async(queue, blk4);
+dispatch_async(queue, blk5);
+dispatch_async(queue, blk6);
+```
+
+dispatch_barrier_async 是栅栏函数，它就好像栅栏一般，在它前面的操作先执行，在它后面的操作后执行。若不加栅栏函数，并行执行的操作顺序不定。
+
+使用 dispatch_barrier_async 需要注意：
+
+1. 必须是同一个 ConCurrent Dispatch Queue，并且对 dispatch_get_global_queue 不生效。
+2. 栅栏函数前面和后面的操作，依旧是并行且顺序不定的。
+
+#### dispatch_block_cancel
+
+通过 dispatch_block_cancel 取消队列中的任务，需要注意仅能取消尚未开始执行的任务。也可用 NSOperationQueue 管理队列，实现取消任务。
+
+#### dispatch_sync
+
+dispatch_async是异步执行，dispatch_sync是同步执行。
+
+```
+dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_sync(globalQueue, ^{
+    // 先执行
+});
+// 阻塞等待 globalQueue 执行完毕后，再执行接下来的操作
+NSLog(@"done");
+```
+
+使用时需要注意以下几点：
+
+1. 不要在主线程里使用 dispatch_sync(dispatch_get_main_queue(), blk)，会造成线程等待死锁。
+2. 同步等待容易导致多线程问题，使用时做好线程检查。
+
+#### dispatch_apply
+
+函数作用类似于 dispatch_sync 和 Dispatch Group 的结合。函数作用是指定次数把相同block追加到队列中，并且等待所有添加的任务执行完毕。
+
+```
+dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_apply(10, globalQueue, ^(size_t index) {
+    NSLog(@"%ld", index);
+});
+// 阻塞等待 globalQueue 执行完毕后，再执行接下来的操作
+NSLog(@"done");
+```
+
+使用时，多与 dispatch_global_queue 和 dispatch_get_main 配合使用，在子线程执行耗时操作，主线程执行 UI 刷新操作。
+
+#### dispatch_suspend / dispatch_resume
+
+dispatch_suspend 与 dispatch_resume 配合使用，多用于“挂起”与“恢复”线程。
+
+#### Dispatch Semaphore
+
+作用类似于信号量。
+
+dispatch_semaphore_wait 来判断当前信号量，若信号量大于等于1，则可以继续执行，否则等待，一旦继续执行，则信号量减1。
+
+dispatch_semaphore_signal 表示释放信号量，调用后信号量加1。
+
+```
+dispatch_queue_t queue = dispatch_queue_create("com.example.gcd.concurrentqueue", 0);
+dispatch_semaphore_t semaphore = dispatch_semaphore_create(1);
+NSMutableArray *array = [NSMutableArray array];
+for (int i = 0; i != 100; i++) {
+    dispatch_async(queue, ^{
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        [array addObject:@(i)];
+        dispatch_semaphore_signal(semaphore);
+    });
+}
+```
+
+可使用于线程等待，阻塞执行等场景。
+
+#### dispatch_once
+
+```
+static dispatch_once_t onceToken;
+dispatch_once(&onceToken, ^{
+	// 线程安全，仅执行一次
+});
+```
+
+若有单例需求，推荐使用dispatch_once，可保证线程安全。
+
+#### Dispatch I/O
+
+GCD 提供的对文件多线程并行读取 API。如果要尝试提高文件读取速度，可以尝试 Dispatch I/O。
+
+### 总结
+
+本文介绍 GCD API 的相关使用。防止掉入 GCD 的坑里，我们还需剖析底层实现和相关原理，下一篇文章我们便来看看 GCD 的原理。
