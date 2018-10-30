@@ -19,7 +19,7 @@ Objective-C 的底层是用 C/C++ 实现的，在系统讲解 Objective-C 的底
 
 堆空间的内存，需要手动管理，多与`new`，`delete`关键字搭配使用。
 
-```
+```c++
 class Foo {
 public:
     int value1;
@@ -65,7 +65,7 @@ Objective-C 的底层是用 C/C++ 实现的，在C++之上，Objective-C 封装�
 
 每一个对类发送 `alloc` 消息，都会产生实例对象。
 
-```objective-c
+```c++
 @interface HTObject : NSObject {
     int _value;
 }
@@ -132,7 +132,7 @@ static void _I_HTObject_function(HTObject * self, SEL _cmd) {
 
 Objective-C 每个类定义，在内存中都存在类对象。
 
-```objective-c
+```c++
 HTObject *object = [[HTObject alloc] init];
 // 类对象
 Class objectClass1 = [object class];
@@ -141,7 +141,7 @@ Class objectClass2 = object_getClass(object);
 
 类对象的类型为`Class`，通过`typedef struct objc_class *Class`可以得知，`Class` 是指向 `struct objc_class` 的指针。 `objc_class`的定义可通过苹果开源的[源码](https://opensource.apple.com/tarballs/objc4/)来窥探一下:
 
-```objective-c
+```c++
 struct objc_object {
 private:
     // isa指针
@@ -195,7 +195,7 @@ struct class_rw_t {
 
 Objective-C 每个类定义，除了类对象外，在内存中也存在元类对象。
 
-```objective-c
+```c++
 HTObject *object = [[HTObject alloc] init];
 // 元类对象
 Class objectMetaClass = object_getClass([object class]);
