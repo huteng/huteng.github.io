@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keyword"  content="ronhu, @ronhu, huteng, 胡腾, Blog, Github, 博客, 互联网, 前端, iOS, 产品, 胡腾的个人网站,  mobile, C++, Git">
+    <meta name="description" content="知行合一">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Objective-C的类和对象模型 - ronhu</title>
+
+    <link rel="canonical" href="http://localhost:4000/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="//cdn.bootcss.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/ronhu.min.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+<link rel="alternate" type="application/rss+xml"
+  href="feed.xml" title="ronhu">
+    <!-- Custom Fonts -->
+    <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+	.ds-powered-by {
+		display:none !important ;
+	}
+	.ds-post-toolbar .ds-sync{
+		display:none !important ;
+	}
+    </style>
+</head>
+
+
+<body ontouchstart="">
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">ronhu</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">首页</a>
+                </li>
+
+<!--                 <li>
+                    <a href="/apps/">应用</a>
+                </li>
+
+                <li>
+                    <a href="/open/">开源</a>
+                </li>
+ -->
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+		<!--
+                
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+                
+                <li>
+                    <a href="/open/">Open</a>
+                </li>
+                
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+                
+		-->
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/home-bg.jpg')" >
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/#iOS" title="iOS">iOS</a>
+                        
+                    </div>
+                    <h1>Objective-C的类和对象模型</h1>
+                    
+                    
+                    <h2 class="subheading"></h2>
+                    
+                    <span class="meta">Posted by ronhu on October 30, 2018</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+  <div class="container" style="overflow-y:hidden;">
+    <div class="row">
+      <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1 post-container">
+
+				<p>本文从 C++ 的角度出发，讲解和剖析 Objective-C 的类和对象模型。</p>
+
+<h3 id="一基础知识储备">一、基础知识储备</h3>
+
+<p>Objective-C 的底层是用 C/C++ 实现的，在系统讲解 Objective-C 的底层结构之前，我们先来温故一些基础知识。</p>
+
+<h4 id="1堆空间栈空间">1、堆空间、栈空间</h4>
+
+<p>程序的内存一般分为五块，<code>堆空间</code>，<code>栈空间</code>，<code>代码区</code>，<code>字符常量区</code>，<code>全局区</code>。这里我们拎出开发中经常接触到的堆空间和栈空间来讲解。</p>
+
+<p>栈空间的内存，系统自动管理，出作用域后回收内存。</p>
+
+<p>堆空间的内存，需要手动管理，多与<code>new</code>，<code>delete</code>关键字搭配使用。</p>
+
+<pre><code class="language-c++">class Foo {
+public:
+    int value1;
+    int value2;    
+    void function() {}
+};
+void test () {
+    // 1. 栈空间，函数作用域外自动回收内存
+    Foo foo;
+    
+    // 2. 堆空间，需手动管理内存
+    // 需注意指针本身的内存在栈空间，指针指向的内容在堆空间
+    Foo *pFoo = new Foo();
+    delete pFoo;
+}
+</code></pre>
+
+<p>在实际的开发过程中，需注意内存分配在栈空间或堆空间。而在Objective-C中，使用<code>new</code>、<code>alloc</code>分配的对象都在堆空间上。</p>
+
+<h4 id="2函数地址">2、函数地址</h4>
+
+<p>在讲解函数地址前，先抛出一个疑问，上面代码的<code>class Foo</code>，其中有两个<code>int</code>类型的成员value1、value2，一个成员方法 function()。那么用该类实例化的对象，内存占用多大呢？</p>
+
+<p>答案：我们用<code>sizeof(foo)</code>可以得到，对象 <code>foo</code>占用了8个字节的内存空间，刚好是两个<code>int</code>类型相加。</p>
+
+<p>那么这里产生了另外一个疑问，成员方法不占用内存大小吗？— 答案是否定的。</p>
+
+<p>完整的解释是，成员方法全局只存在一份，拥有全局唯一的函数地址；成员方法会占用全局内存大小，但是不占用实例化对象的内存空间。这个小知识点比较重要，在后续讲解 Objective-C 底层结构时也会提到。</p>
+
+<h4 id="3struct-和-class-的区别">3、struct 和 class 的区别</h4>
+
+<p><code>struct</code> 和 <code>class</code> 都能用来声明类，他们之间唯一的区别是对成员的权限管理不同，<code>struct</code>默认权限是<code>public</code>，<code>class</code>的默认权限是<code>private</code>。而Objective-C的类底层结构都会声明为 struct。</p>
+
+<h3 id="二objective-c-对象模型">二、Objective-C 对象模型</h3>
+
+<p>Objective-C 的底层是用 C/C++ 实现的，在C++之上，Objective-C 封装了一层系统实现，实现了动态消息转发机制。不同于C++，对于 Objective-C 的对象，可以分为三种：</p>
+
+<ul>
+  <li>instance对象，也称为实例对象。</li>
+  <li>class对象，也称为类对象。</li>
+  <li>meta-class对象，也称为元类对象。</li>
+</ul>
+
+<h4 id="1实例对象">1、实例对象</h4>
+
+<p>每一个对类发送 <code>alloc</code> 消息，都会产生实例对象。</p>
+
+<pre><code class="language-c++">@interface HTObject : NSObject {
+    int _value;
+}
+- (void)function;
+@end
+@implementation HTObject
+- (void)function {}
+@end
+
+void test() {
+	// 产生实例对象
+	HTObject *object = [[HTObject alloc] init];
+}
+</code></pre>
+
+<p>假设输入文件为main.mm，输出文件为main.cpp，利用命令<code>xcrun -sdk iphoneos clang -arch arm64 -rewrite-objc main.mm -o main.cpp</code>，将Objective-C代码转换成C++代码，关键代码转化为：</p>
+
+<pre><code class="language-c++">typedef struct objc_class *Class;
+struct NSObject_IMPL {
+	Class isa;
+};
+struct HTObject_IMPL {
+	struct NSObject_IMPL NSObject_IVARS;
+	int _value;
+};
+// @implementation HTObject
+static void _I_HTObject_function(HTObject * self, SEL _cmd) {
+
+}
+// @end
+</code></pre>
+
+<p>从转化后C++代码中，我们可以得到三个很关键的信息：</p>
+
+<ol>
+  <li>Objective-C 的类底层是用<code>struct</code>来实现的。</li>
+  <li>Objective-C的实例对象中，在内存中存储了 <code>isa</code> 指针和成员变量。</li>
+  <li>成员方法不占用实例对象的内存。</li>
+</ol>
+
+<p>好，讲到这里得知了，实例对象仅存储了成员变量的值，那么成员方法和属性信息存在放哪里呢？在讲解这个知识点之前，我们先总览 Objective-C 的对象关系图。</p>
+
+<h4 id="2对象关系图">2、对象关系图</h4>
+
+<p>网上有张<a href="http://www.sealiesoftware.com/blog/class%20diagram.pdf">介绍图</a>非常系统的表示实例对象、类对象、元类对象三者的关系。</p>
+
+<p><img src="http://ronhu.me/img/class_relationship.png" alt="" /></p>
+
+<p>剖析下这张图需要注意什么：</p>
+
+<ol>
+  <li>Objective-C 存在三种对象，实例对象（instance），类对象（class），元类对象（meta）。</li>
+  <li>三种对象的内部都有<code>isa</code>指针，实例对象的<code>isa</code>指针指向类对象，类对象的<code>isa</code>指针指向元类对象，元类对象的<code>isa</code>指针指向<code>Root Class</code>的元类对象，即<code>NSObject</code>的元类对象。（Objective2.0之后，isa 间接存储指向地址）</li>
+  <li><code>NSObject</code> 的<strong>元类对象</strong>的<code>superclass</code>指针指向了 <code>NSObject</code>的<strong>类对象</strong>。</li>
+  <li>对象方法的查找，先从<strong>实例对象</strong>的<code>isa</code>指针找到<strong>类对象</strong>，若<strong>类对象</strong>不存在该方法，则通过superclass找父类。</li>
+  <li>类方法的查找，先从<strong>类对象</strong>的<code>isa</code>指针找到<strong>元类对象</strong>，若<strong>元类对象</strong>不存在该方法，则通过superclass找父类。</li>
+</ol>
+
+<p>好，看到这里，就可以推导出结论：</p>
+
+<ol>
+  <li>实例对象仅存储了成员变量和指向类对象的 <code>isa</code> 指针。</li>
+  <li>成员方法的函数地址等存储在类对象和元类对象里。</li>
+</ol>
+
+<p>下面我们来看看类对象和元类对象的底层结构是怎样的。</p>
+
+<h4 id="3类对象">3、类对象</h4>
+
+<p>Objective-C 每个类定义，在内存中都存在类对象。</p>
+
+<pre><code class="language-c++">HTObject *object = [[HTObject alloc] init];
+// 类对象
+Class objectClass1 = [object class];
+Class objectClass2 = object_getClass(object);
+</code></pre>
+
+<p>类对象的类型为<code>Class</code>，通过<code>typedef struct objc_class *Class</code>可以得知，<code>Class</code> 是指向 <code>struct objc_class</code> 的指针。 <code>objc_class</code>的定义可通过苹果开源的<a href="https://opensource.apple.com/tarballs/objc4/">源码</a>来窥探一下:</p>
+
+<pre><code class="language-c++">struct objc_object {
+private:
+    // isa指针
+    isa_t isa;
+public:
+	// ... 其他辅助方法
+}
+
+struct objc_class : objc_object {
+	// 父类指针
+    Class superclass;
+    // 方法缓存
+    cache_t cache;             
+	// bits &amp; FAST_DATA_MASK 可得到 class_rw_t *
+    class_data_bits_t bits;    
+    class_rw_t *data() { 
+        return bits.data();
+    }
+	// ...其他辅助方法
+}
+
+// 类信息
+struct class_rw_t {
+    uint32_t flags;
+    uint32_t version;
+    // 类只读信息，包含类名，成员变量列表等不可变信息。
+    const class_ro_t *ro; 
+	
+    // 方法列表
+    method_array_t methods;
+    // 属性列表
+    property_array_t properties;
+    // 协议列表
+    protocol_array_t protocols;
+ 
+    Class firstSubclass;
+    Class nextSiblingClass;
+    char *demangledName;    
+	// ...其他辅助方法
+}
+</code></pre>
+
+<p>通过源码，我们可以得知，<code>objc_class</code>里包含了几个关键信息：</p>
+
+<ol>
+  <li>isa指针，superclass指针。</li>
+  <li>方法列表，属性列表，协议列表。</li>
+  <li>类名，成员变量等不可变信息。</li>
+  <li>其他辅助信息。</li>
+</ol>
+
+<h4 id="4元类对象">4、元类对象</h4>
+
+<p>Objective-C 每个类定义，除了类对象外，在内存中也存在元类对象。</p>
+
+<pre><code class="language-c++">HTObject *object = [[HTObject alloc] init];
+// 元类对象
+Class objectMetaClass = object_getClass([object class]);
+class_isMetaClass(objectMetaClass); 
+</code></pre>
+
+<p>元类对象的类型也为<code>Class</code>，底层结构和类对象一致，存储结构为<code>objc_class</code>。虽然存储结构一致，但是元类对象和类对象的用途却不同：</p>
+
+<ol>
+  <li><code>methods</code>，元类存储的<code>类方法</code>，类对象存储的是<code>对象方法</code>。</li>
+  <li><code>properties</code>，元类存储的<code>类属性</code>，类方法存储的<code>对象属性</code>。</li>
+</ol>
+
+<p>所以，元类对象中主要是存储和类方法相关的信息，而类对象存储的是对象方法相关的信息。</p>
+
+<h3 id="三总结与回顾">三、总结与回顾</h3>
+
+<p>本文总结起来介绍了几个重要知识点：</p>
+
+<ol>
+  <li>Objective-C 的对象，分为三种：实例对象，类对象，元类对象。</li>
+  <li>Objective-C 的对象之间的关系通过 <code>isa</code> 来关联。</li>
+  <li>类对象和元类对象底层结构一致，类对象主要存储成员方法相关的信息，元类对象主要存储类对象相关信息。</li>
+</ol>
+
+<p>Objective-C的底层对象模型是基石，在掌握对象模型之后，我们能更好的领悟：</p>
+
+<ol>
+  <li>Objective-C 的消息发送机制。</li>
+  <li>Method Swizzing，方法动态替换。</li>
+  <li>KVC，KVO，Category 实现原理等。</li>
+</ol>
+
+
+        <hr>
+      </div>
+      
+      <!-- 畅言评论框 start-->
+      <div id="SOHUCS" ></div>
+      <script type="text/javascript">
+      (function(){
+      var appid = ;
+      var conf = ;
+      var width = window.innerWidth || document.documentElement.clientWidth;
+      if (width < 960) {
+      window.document.write('<script id="changyan_mobile_js" charset="utf-8" type="text/javascript" src="https://changyan.sohu.com/upload/mobile/wap-js/changyan_mobile.js?client_id=' + appid + '&conf=' + conf + '"><\/script>'); } else { var loadJs=function(d,a){var c=document.getElementsByTagName("head")[0]||document.head||document.documentElement;var b=document.createElement("script");b.setAttribute("type","text/javascript");b.setAttribute("charset","UTF-8");b.setAttribute("src",d);if(typeof a==="function"){if(window.attachEvent){b.onreadystatechange=function(){var e=b.readyState;if(e==="loaded"||e==="complete"){b.onreadystatechange=null;a()}}}else{b.onload=a}}c.appendChild(b)};loadJs("https://changyan.sohu.com/upload/changyan.js",function(){window.changyan.api.config({appid:appid,conf:conf})}); } })(); </script>
+       <!-- 畅言评论框 end -->
+    </div>
+  </div>
+</article>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+
+                    
+
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; ronhu 2018</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="//cdn.bootcss.com/jquery/2.2.2/jquery.min.js"></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="//cdn.bootcss.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/ronhu.min.js "></script>
+
+<!-- TODO: only load in tag.html -->
+<script src="/js/jquery.tagcloud.js" type="text/javascript" charset="utf-8"></script>
+<script language="javascript">
+    $.fn.tagcloud.defaults = {
+        //size: {start: 1, end: 1, unit: 'em'},
+        color: {start: '#bbbbee', end: '#0085a1'},
+    };
+    $(function () {
+        $('#tag_cloud a').tagcloud();
+    });
+</script>
+
+<!-- async load function -->
+<script>
+    function async(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+<!-- Highlight.js -->
+<script>
+    async("//cdn.bootcss.com/highlight.js/9.4.0/highlight.min.js",function(){
+        hljs.initHighlightingOnLoad();
+    })
+</script>
+<link href="//cdn.bootcss.com/highlight.js/9.4.0/styles/github.min.css" rel="stylesheet">
+
+<div class="cb-search-tool" style="position: fixed; top: 0px ; bottom: 0px; left: 0px; right:  0px;
+      opacity: 0.95; background-color: #111111; z-index: 9999; display: none;">
+    <input type="text" class="form-control cb-search-content" id="cb-search-content" style="position: fixed; top: 60px" placeholder="文章标题 日期 标签" >
+
+    <div style="position: fixed; top: 16px; right: 16px;">
+        <img src="/search/img/cb-close.png"  id="cb-close-btn"/>
+    </div>
+</div>
+
+<div style="position: fixed; right: 16px; bottom: 20px;">
+    <img src="/search/img/cb-search.png"  id="cb-search-btn"  title="双击ctrl试一下"/>
+</div>
+
+<link rel="stylesheet" href="/search/css/cb-search.css">
+
+<script src="/search/js/bootstrap3-typeahead.min.js"></script>
+<script src="/search/js/cb-search.js"></script>
+
+<script>
+$(document).ready(function(){
+  //代码高亮自定义
+  $("code").each(function(){
+    var content =  $(this).html().replace(/\n/g,"\n</li><li>");
+    if(content.indexOf('<li>') == -1){
+      //适配`abc`，放行
+    }else{
+        $(this).html("<ul><li>" + content.substring(0, content.length - 4) +"</ul>"); //适配```
+    }
+  });
+})
+</script>
+
+<div style="display:none;">
+  <script src="//s19.cnzz.com/z_stat.php?id=1000478693&web_id=1000478693" language="JavaScript"></script>
+</div>
+
+
+</body>
+
+</html>

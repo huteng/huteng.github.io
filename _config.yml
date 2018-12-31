@@ -12,7 +12,6 @@ description: "知行合一"
 #changyan_conf: "'changyan_conf'"
 ##########################上述信息需要您修改,changyan_appid、changyan_conf############################
 
-
 # Where things are
 source:       .
 destination:  ./_site
@@ -38,13 +37,12 @@ future:      false
 unpublished: false
 
 # Plugins
-#whitelist: []
-#plugins:      ["jekyll-paginate"]
-gems: [jekyll-paginate]
+whitelist: []
+plugins:      ["jekyll-paginate"]
 #gems:      []
 
 # Conversion
-markdown:    redcarpet
+markdown:    kramdown
 highlighter: pygments
 lsi:         false
 excerpt_separator: "\n\n"
@@ -58,7 +56,7 @@ baseurl: "" # does not include hostname
 
 # Outputting
 permalink: pretty
-paginate: 10
+paginate: 16
 paginate_path: /page/:num
 timezone: Asia/Shanghai
 

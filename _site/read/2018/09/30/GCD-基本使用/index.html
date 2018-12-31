@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keyword"  content="ronhu, @ronhu, huteng, 胡腾, Blog, Github, 博客, 互联网, 前端, iOS, 产品, 胡腾的个人网站,  mobile, C++, Git">
+    <meta name="description" content="知行合一">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>GCD 基本使用 - ronhu</title>
+
+    <link rel="canonical" href="http://localhost:4000/read/2018/09/30/GCD-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="//cdn.bootcss.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/ronhu.min.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+<link rel="alternate" type="application/rss+xml"
+  href="feed.xml" title="ronhu">
+    <!-- Custom Fonts -->
+    <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+	.ds-powered-by {
+		display:none !important ;
+	}
+	.ds-post-toolbar .ds-sync{
+		display:none !important ;
+	}
+    </style>
+</head>
+
+
+<body ontouchstart="">
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">ronhu</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">首页</a>
+                </li>
+
+<!--                 <li>
+                    <a href="/apps/">应用</a>
+                </li>
+
+                <li>
+                    <a href="/open/">开源</a>
+                </li>
+ -->
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+		<!--
+                
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+                
+                <li>
+                    <a href="/open/">Open</a>
+                </li>
+                
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+                
+		-->
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/home-bg.jpg')" >
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/#iOS" title="iOS">iOS</a>
+                        
+                    </div>
+                    <h1>GCD 基本使用</h1>
+                    
+                    
+                    <h2 class="subheading"></h2>
+                    
+                    <span class="meta">Posted by ronhu on September 30, 2018</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+  <div class="container" style="overflow-y:hidden;">
+    <div class="row">
+      <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1 post-container">
+
+				<h3 id="为什么需要gcd">为什么需要GCD？</h3>
+
+<p>Grand Central Dispatch (GCD) 是异步执行任务的技术之一。</p>
+
+<p>GCD 主要目的是减少开发多线程的复杂性，降低多线程编程的代码量，从封装层面上减少多线程编程会遇到的问题。开发者定义任务追加到对应的队列中，使用时不再需要关心底层的线程调度，从而减低开发多线程编程的复杂性。</p>
+
+<h3 id="gcd-api-使用">GCD API 使用</h3>
+
+<h4 id="dispatch-queue">Dispatch Queue</h4>
+
+<p>开发者要做的只是定义想执行的任务并追加到适当的 Dispatch Queue 中。</p>
+
+<p>执行任务时，存在两种Dispatch Queue：</p>
+
+<ol>
+  <li>Serial Dispatch Queue  串行队列</li>
+  <li>Concurrent Dispatch Queue 并行队列</li>
+</ol>
+
+<p>需要注意的是 Concurrent Dispatch Queue 的队列数，系统会根据当前状态生成对应数量的线程。</p>
+
+<h4 id="dispatch_queue_create">dispatch_queue_create</h4>
+
+<pre><code>// 生成 Serial Dispatch Queue
+dispatch_queue_t mySerialDispatchQueue = dispatch_queue_create("com.example.gcd.mySerialDispatchQueue", NULL);
+
+// 生成 Concurrent Dispatch Queue
+dispatch_queue_t myConcurrentDispatchQueue = dispatch_queue_create("com.example.gcd.myConcurrentDispatchQueue", DISPATCH_QUEUE_CONCURRENT);
+
+// 执行串行任务
+dispatch_async(mySerialDispatchQueue, ^{ // do something });
+// 执行并行任务
+dispatch_async(myConcurrentDispatchQueue, ^{ // do something });
+</code></pre>
+
+<p>此处需要注意几点：</p>
+
+<ol>
+  <li>dispatch_queue_create 创建 Serial Dispatch Queue 时，每创建一次，便会生成新的线程。大量的线程会消耗内存资源，引发大量的上下文切换，影响系统响应速度。</li>
+  <li>dispatch_queue_create 创建 Concurrent Dispatch Queue 时，操作系统会根据当前内核情况进行线程管理，创建的线程数量由操作系统决定。所以，并非并行的任务就会立刻开始执行，并行队列的任务也会根据相应情况进行排队处理。</li>
+  <li>iOS 6.0以后，不再需要调用 dispatch_release，可通过 OS_OBJECT_USE_OBJC 检查。</li>
+</ol>
+
+<h4 id="main-dispatch-queue--global-dispatch-queue">Main Dispatch Queue / Global Dispatch Queue</h4>
+
+<pre><code>// 获取主线程队列
+dispatch_queue_t mainDispatchQueue = dispatch_get_main_queue();
+// 获取 Concurrent Serial Queue
+dispatch_queue_t globalDispatchQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+</code></pre>
+
+<p>此处需要注意几点：</p>
+
+<ol>
+  <li>dispatch_get_global_queue 有四种优先级：DISPATCH_QUEUE_PRIORITY_HIGH，DISPATCH_QUEUE_PRIORITY_DEFAULT，DISPATCH_QUEUE_PRIORITY_LOW，DISPATCH_QUEUE_PRIORITY_BACKGROUND。第二个参数是系统保留位，目前必须填0。</li>
+  <li>dispatch_get_global_queue 获取的队列没有名字，所以调试起来会比较麻烦，所以需要调试的功能，dispatch_create_queue 是更为合适的方案，dispatch_create_queue 的 Concurrent Dispatch Queue 的优先级为 DEFAULT。</li>
+</ol>
+
+<h4 id="dispatch_set_target_queue">dispatch_set_target_queue</h4>
+
+<pre><code>// 改变队列的执行层级
+dispatch_set_target_queue(mySerialDispatchQueue, globalDispatchQueue);
+</code></pre>
+
+<h4 id="dispatch_after">dispatch_after</h4>
+
+<pre><code>dispatch_time_t time = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC));
+dispatch_after(time, dispatch_get_main_queue(), ^{
+    // do something
+});
+</code></pre>
+
+<p>此处需要几点：</p>
+
+<ol>
+  <li>dispatch_after的含义是延迟时间间隔将任务加入到队列中，所以实际执行的延迟时间并不一定是指定的延迟时间，而是根据当时的队列状况决定的。</li>
+  <li>dispatch_walltime 可制定具体时间点。</li>
+</ol>
+
+<h4 id="dispatch-group">Dispatch Group</h4>
+
+<pre><code>dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_group_t group = dispatch_group_create();
+dispatch_group_async(group, globalQueue, ^{ NSLog(@"1"); });
+dispatch_group_async(group, globalQueue, ^{ NSLog(@"2"); });
+dispatch_group_async(group, globalQueue, ^{ NSLog(@"3"); });
+
+// 等待任务1，2，3完成后调用
+dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+    NSLog(@"done");
+});
+</code></pre>
+
+<p>当任务1，2，3执行完毕后，会 notify 结束的 block，用于非阻塞等待的场景。</p>
+
+<p>若需要阻塞等待的场景，用下列方式：</p>
+
+<pre><code>// result 为0，则执行完毕，时间可指定DISPATCH_TIME_FOREVER，无限阻塞等待
+long result = dispatch_group_wait(group, 1ull * NSEC_PER_SEC);
+</code></pre>
+
+<h4 id="dispatch_barrier_async">dispatch_barrier_async</h4>
+
+<pre><code>dispatch_queue_t queue = dispatch_queue_create("com.gcd.barrier.concurrentQueue", DISPATCH_QUEUE_CONCURRENT);
+dispatch_async(queue, blk1);
+dispatch_async(queue, blk2);
+dispatch_async(queue, blk3);
+dispatch_barrier_async(queue, barrierBlk);
+dispatch_async(queue, blk4);
+dispatch_async(queue, blk5);
+dispatch_async(queue, blk6);
+</code></pre>
+
+<p>dispatch_barrier_async 是栅栏函数，它就好像栅栏一般，在它前面的操作先执行，在它后面的操作后执行。若不加栅栏函数，并行执行的操作顺序不定。</p>
+
+<p>使用 dispatch_barrier_async 需要注意：</p>
+
+<ol>
+  <li>必须是同一个 ConCurrent Dispatch Queue，并且对 dispatch_get_global_queue 不生效。</li>
+  <li>栅栏函数前面和后面的操作，依旧是并行且顺序不定的。</li>
+</ol>
+
+<h4 id="dispatch_block_cancel">dispatch_block_cancel</h4>
+
+<p>通过 dispatch_block_cancel 取消队列中的任务，需要注意仅能取消尚未开始执行的任务。也可用 NSOperationQueue 管理队列，实现取消任务。</p>
+
+<h4 id="dispatch_sync">dispatch_sync</h4>
+
+<p>dispatch_async是异步执行，dispatch_sync是同步执行。</p>
+
+<pre><code>dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_sync(globalQueue, ^{
+    // 先执行
+});
+// 阻塞等待 globalQueue 执行完毕后，再执行接下来的操作
+NSLog(@"done");
+</code></pre>
+
+<p>使用时需要注意以下几点：</p>
+
+<ol>
+  <li>不要在主线程里使用 dispatch_sync(dispatch_get_main_queue(), blk)，会造成线程等待死锁。</li>
+  <li>同步等待容易导致多线程问题，使用时做好线程检查。</li>
+</ol>
+
+<h4 id="dispatch_apply">dispatch_apply</h4>
+
+<p>函数作用类似于 dispatch_sync 和 Dispatch Group 的结合。函数作用是指定次数把相同block追加到队列中，并且等待所有添加的任务执行完毕。</p>
+
+<pre><code>dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_apply(10, globalQueue, ^(size_t index) {
+    NSLog(@"%ld", index);
+});
+// 阻塞等待 globalQueue 执行完毕后，再执行接下来的操作
+NSLog(@"done");
+</code></pre>
+
+<p>使用时，多与 dispatch_global_queue 和 dispatch_get_main 配合使用，在子线程执行耗时操作，主线程执行 UI 刷新操作。</p>
+
+<h4 id="dispatch_suspend--dispatch_resume">dispatch_suspend / dispatch_resume</h4>
+
+<p>dispatch_suspend 与 dispatch_resume 配合使用，多用于“挂起”与“恢复”线程。</p>
+
+<h4 id="dispatch-semaphore">Dispatch Semaphore</h4>
+
+<p>作用类似于信号量。</p>
+
+<p>dispatch_semaphore_wait 来判断当前信号量，若信号量大于等于1，则可以继续执行，否则等待，一旦继续执行，则信号量减1。</p>
+
+<p>dispatch_semaphore_signal 表示释放信号量，调用后信号量加1。</p>
+
+<pre><code>dispatch_queue_t queue = dispatch_queue_create("com.example.gcd.concurrentqueue", 0);
+dispatch_semaphore_t semaphore = dispatch_semaphore_create(1);
+NSMutableArray *array = [NSMutableArray array];
+for (int i = 0; i != 100; i++) {
+    dispatch_async(queue, ^{
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        [array addObject:@(i)];
+        dispatch_semaphore_signal(semaphore);
+    });
+}
+</code></pre>
+
+<p>可使用于线程等待，阻塞执行等场景。</p>
+
+<h4 id="dispatch_once">dispatch_once</h4>
+
+<pre><code>static dispatch_once_t onceToken;
+dispatch_once(&amp;onceToken, ^{
+	// 线程安全，仅执行一次
+});
+</code></pre>
+
+<p>若有单例需求，推荐使用dispatch_once，可保证线程安全。</p>
+
+<h4 id="dispatch-io">Dispatch I/O</h4>
+
+<p>GCD 提供的对文件多线程并行读取 API。如果要尝试提高文件读取速度，可以尝试 Dispatch I/O。</p>
+
+<h3 id="总结">总结</h3>
+
+<p>本文介绍 GCD API 的相关使用。防止掉入 GCD 的坑里，我们还需剖析底层实现和相关原理，下一篇文章我们便来看看 GCD 的原理。</p>
+
+
+        <hr>
+      </div>
+      
+      <!-- 畅言评论框 start-->
+      <div id="SOHUCS" ></div>
+      <script type="text/javascript">
+      (function(){
+      var appid = ;
+      var conf = ;
+      var width = window.innerWidth || document.documentElement.clientWidth;
+      if (width < 960) {
+      window.document.write('<script id="changyan_mobile_js" charset="utf-8" type="text/javascript" src="https://changyan.sohu.com/upload/mobile/wap-js/changyan_mobile.js?client_id=' + appid + '&conf=' + conf + '"><\/script>'); } else { var loadJs=function(d,a){var c=document.getElementsByTagName("head")[0]||document.head||document.documentElement;var b=document.createElement("script");b.setAttribute("type","text/javascript");b.setAttribute("charset","UTF-8");b.setAttribute("src",d);if(typeof a==="function"){if(window.attachEvent){b.onreadystatechange=function(){var e=b.readyState;if(e==="loaded"||e==="complete"){b.onreadystatechange=null;a()}}}else{b.onload=a}}c.appendChild(b)};loadJs("https://changyan.sohu.com/upload/changyan.js",function(){window.changyan.api.config({appid:appid,conf:conf})}); } })(); </script>
+       <!-- 畅言评论框 end -->
+    </div>
+  </div>
+</article>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+
+                    
+
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; ronhu 2018</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="//cdn.bootcss.com/jquery/2.2.2/jquery.min.js"></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="//cdn.bootcss.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/ronhu.min.js "></script>
+
+<!-- TODO: only load in tag.html -->
+<script src="/js/jquery.tagcloud.js" type="text/javascript" charset="utf-8"></script>
+<script language="javascript">
+    $.fn.tagcloud.defaults = {
+        //size: {start: 1, end: 1, unit: 'em'},
+        color: {start: '#bbbbee', end: '#0085a1'},
+    };
+    $(function () {
+        $('#tag_cloud a').tagcloud();
+    });
+</script>
+
+<!-- async load function -->
+<script>
+    function async(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+<!-- Highlight.js -->
+<script>
+    async("//cdn.bootcss.com/highlight.js/9.4.0/highlight.min.js",function(){
+        hljs.initHighlightingOnLoad();
+    })
+</script>
+<link href="//cdn.bootcss.com/highlight.js/9.4.0/styles/github.min.css" rel="stylesheet">
+
+<div class="cb-search-tool" style="position: fixed; top: 0px ; bottom: 0px; left: 0px; right:  0px;
+      opacity: 0.95; background-color: #111111; z-index: 9999; display: none;">
+    <input type="text" class="form-control cb-search-content" id="cb-search-content" style="position: fixed; top: 60px" placeholder="文章标题 日期 标签" >
+
+    <div style="position: fixed; top: 16px; right: 16px;">
+        <img src="/search/img/cb-close.png"  id="cb-close-btn"/>
+    </div>
+</div>
+
+<div style="position: fixed; right: 16px; bottom: 20px;">
+    <img src="/search/img/cb-search.png"  id="cb-search-btn"  title="双击ctrl试一下"/>
+</div>
+
+<link rel="stylesheet" href="/search/css/cb-search.css">
+
+<script src="/search/js/bootstrap3-typeahead.min.js"></script>
+<script src="/search/js/cb-search.js"></script>
+
+<script>
+$(document).ready(function(){
+  //代码高亮自定义
+  $("code").each(function(){
+    var content =  $(this).html().replace(/\n/g,"\n</li><li>");
+    if(content.indexOf('<li>') == -1){
+      //适配`abc`，放行
+    }else{
+        $(this).html("<ul><li>" + content.substring(0, content.length - 4) +"</ul>"); //适配```
+    }
+  });
+})
+</script>
+
+<div style="display:none;">
+  <script src="//s19.cnzz.com/z_stat.php?id=1000478693&web_id=1000478693" language="JavaScript"></script>
+</div>
+
+
+</body>
+
+</html>

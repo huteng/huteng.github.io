@@ -86,10 +86,6 @@
 		<!--
                 
                 <li>
-                    <a href="/apps/">Apps</a>
-                </li>
-                
-                <li>
                     <a href="/about/">关于</a>
                 </li>
                 
@@ -141,9 +137,9 @@
 
 				<h4 id="什么是智能指针">什么是智能指针？</h4>
 
-<p>智能指针是一种特殊类型的“局部对象”，表现如同裸指针，但是具备<code class="highlighter-rouge">离开作用域(out of scope)时主动释放所指向对象</code>的能力。因为C++没有垃圾回收机制，因此智能指针的特性显得非常重要。</p>
+<p>智能指针是一种特殊类型的“局部对象”，表现如同裸指针，但是具备<code>离开作用域(out of scope)时主动释放所指向对象</code>的能力。因为C++没有垃圾回收机制，因此智能指针的特性显得非常重要。</p>
 
-<p>下面是最常用智能指针类型<code class="highlighter-rouge">std::unique_ptr&lt;&gt;</code>的例子：</p>
+<p>下面是最常用智能指针类型<code>std::unique_ptr&lt;&gt;</code>的例子：</p>
 <pre><code class="language-C++">// 我们可以在构造std::unique_prt&lt;&gt;的时候传入指针
 std::unique_ptr value(base::JSONReader::Read(data));
 std::unique_ptr foo_ptr(new Foo(...));
@@ -169,23 +165,23 @@ if (!value-&gt;GetAsDictionary(&amp;dict)) return false;
 
 <h4 id="存在哪些类型的智能指针">存在哪些类型的智能指针？</h4>
 
-<p>在Chromium里最常用的两种智能指针类型是<code class="highlighter-rouge">std::unique_ptr&lt;&gt;</code>和<code class="highlighter-rouge">scoped_refptr&lt;&gt;</code>。前者适用于单一所有权的对象，后者适用于引用计数的对象（然而，通常应该避免使用引用计数的对象）。如果你比较熟悉C++11，会发现<code class="highlighter-rouge">scoepd_refptr&lt;&gt;</code>和<code class="highlighter-rouge">std::shared_ptr&lt;&gt;</code>用法很相似。</p>
+<p>在Chromium里最常用的两种智能指针类型是<code>std::unique_ptr&lt;&gt;</code>和<code>scoped_refptr&lt;&gt;</code>。前者适用于单一所有权的对象，后者适用于引用计数的对象（然而，通常应该避免使用引用计数的对象）。如果你比较熟悉C++11，会发现<code>scoepd_refptr&lt;&gt;</code>和<code>std::shared_ptr&lt;&gt;</code>用法很相似。</p>
 
 <p><a href="https://chromium.googlesource.com/chromium/src/+/master/base/memory/">base/memory/</a> 还定义了其余几种类型的对象：</p>
 
 <ul>
-  <li><code class="highlighter-rouge">linked_ptr&lt;&gt;</code> 用于在C++11之前存放智能指针对象，已被废弃。现在Chromium已经支持C++11了，我们不应该再使用<code class="highlighter-rouge">linked_ptr&lt;&gt;</code>了，而应该在STL容器里使用<code class="highlighter-rouge">std::unique_ptr&lt;&gt;</code>。</li>
-  <li><code class="highlighter-rouge">ScopedVector&lt;&gt;</code>也被废弃了。它是一种vector，并且持有容器内对象的所有权。请使用<code class="highlighter-rouge">std::vector&lt;std::unique_ptr&lt;&gt;&gt;</code>代替。</li>
-  <li><code class="highlighter-rouge">WeakPtr&lt;&gt;</code>实际上不是智能指针。它的表现像指针类型，但是并不能用来自动释放对象，通常用作追踪其它地方拥有的对象是否依然存活，当追踪对象释放时，<code class="highlighter-rouge">WeakPtr&lt;&gt;</code>会自动的置为<code class="highlighter-rouge">null</code>。（但是依然需要在解引用前判断是否为<code class="highlighter-rouge">null</code>，因为解引用<code class="highlighter-rouge">null WeakPtr&lt;&gt;</code>等于于解引用<code class="highlighter-rouge">null</code>，而不是no-op。）<code class="highlighter-rouge">WeakPtr&lt;&gt;</code>与C++11的<code class="highlighter-rouge">std::weak_ptr&lt;&gt;</code>作用比较相似，但是使用了不同的API并且少了许多使用限制。</li>
+  <li><code>linked_ptr&lt;&gt;</code> 用于在C++11之前存放智能指针对象，已被废弃。现在Chromium已经支持C++11了，我们不应该再使用<code>linked_ptr&lt;&gt;</code>了，而应该在STL容器里使用<code>std::unique_ptr&lt;&gt;</code>。</li>
+  <li><code>ScopedVector&lt;&gt;</code>也被废弃了。它是一种vector，并且持有容器内对象的所有权。请使用<code>std::vector&lt;std::unique_ptr&lt;&gt;&gt;</code>代替。</li>
+  <li><code>WeakPtr&lt;&gt;</code>实际上不是智能指针。它的表现像指针类型，但是并不能用来自动释放对象，通常用作追踪其它地方拥有的对象是否依然存活，当追踪对象释放时，<code>WeakPtr&lt;&gt;</code>会自动的置为<code>null</code>。（但是依然需要在解引用前判断是否为<code>null</code>，因为解引用<code>null WeakPtr&lt;&gt;</code>等于于解引用<code>null</code>，而不是no-op。）<code>WeakPtr&lt;&gt;</code>与C++11的<code>std::weak_ptr&lt;&gt;</code>作用比较相似，但是使用了不同的API并且少了许多使用限制。</li>
 </ul>
 
 <h4 id="如何选择使用哪种智能指针">如何选择使用哪种智能指针？</h4>
 
 <ul>
-  <li><strong>单一所有权的对象</strong>。使用<code class="highlighter-rouge">std::unique_ptr</code>。需要注意的是，<code class="highlighter-rouge">std::unique_ptr</code>持有的需要必须是非引用计数的，并且分配在堆上的对象。</li>
-  <li><strong>无所有权的对象</strong>。使用裸指针或者<code class="highlighter-rouge">WeakPtr&lt;&gt;</code>。注意<code class="highlighter-rouge">WeakPtr&lt;&gt;</code>只能在创建它的线程解引用（通常使用<code class="highlighter-rouge">WeakPtrFactory&lt;&gt;</code>）。如果你需要在对象释放前后立刻执行某些操作，那么可能使用callback或notification更适合，而不是<code class="highlighter-rouge">WeakPtr&lt;&gt;</code>。</li>
-  <li><strong>引用计数的对象</strong>。使用<code class="highlighter-rouge">scoped_refptr&lt;&gt;</code>，但是最好是重新考虑使用引用计数对象是否合理。引用计数对象很难明确拥有权和析构顺序，特别是在多线程环境中。总是有方法来重新设计引对象层级来避免引用计数的。限制每个类都只能在单个线程工作，并且使用<code class="highlighter-rouge">PostTask()</code>确保调用在正确的线程，这样有助于在多线程中避免引用计数。<code class="highlighter-rouge">base::Bind()</code>，<code class="highlighter-rouge">WeakPtr&lt;&gt;</code>等工具具备在对象释放时自动取消方法调用的能力。Chromium中依然有许多代码在使用引用计数对象，如果你看见Chromium中有代码这样做但并不代表这是合理的解决方案。</li>
-  <li><strong>平台特定类型</strong>。使用平台特定的对象，譬如<code class="highlighter-rouge">base::win::ScopedHandle</code>，<code class="highlighter-rouge">base::win::ScopedComPtr</code>，或者<code class="highlighter-rouge">base::mac::ScopedCFTypeRef</code>。需要注意的是这些类型使用方式可能和<code class="highlighter-rouge">std::unique_ptr&lt;&gt;</code>不同。</li>
+  <li><strong>单一所有权的对象</strong>。使用<code>std::unique_ptr</code>。需要注意的是，<code>std::unique_ptr</code>持有的需要必须是非引用计数的，并且分配在堆上的对象。</li>
+  <li><strong>无所有权的对象</strong>。使用裸指针或者<code>WeakPtr&lt;&gt;</code>。注意<code>WeakPtr&lt;&gt;</code>只能在创建它的线程解引用（通常使用<code>WeakPtrFactory&lt;&gt;</code>）。如果你需要在对象释放前后立刻执行某些操作，那么可能使用callback或notification更适合，而不是<code>WeakPtr&lt;&gt;</code>。</li>
+  <li><strong>引用计数的对象</strong>。使用<code>scoped_refptr&lt;&gt;</code>，但是最好是重新考虑使用引用计数对象是否合理。引用计数对象很难明确拥有权和析构顺序，特别是在多线程环境中。总是有方法来重新设计引对象层级来避免引用计数的。限制每个类都只能在单个线程工作，并且使用<code>PostTask()</code>确保调用在正确的线程，这样有助于在多线程中避免引用计数。<code>base::Bind()</code>，<code>WeakPtr&lt;&gt;</code>等工具具备在对象释放时自动取消方法调用的能力。Chromium中依然有许多代码在使用引用计数对象，如果你看见Chromium中有代码这样做但并不代表这是合理的解决方案。</li>
+  <li><strong>平台特定类型</strong>。使用平台特定的对象，譬如<code>base::win::ScopedHandle</code>，<code>base::win::ScopedComPtr</code>，或者<code>base::mac::ScopedCFTypeRef</code>。需要注意的是这些类型使用方式可能和<code>std::unique_ptr&lt;&gt;</code>不同。</li>
 </ul>
 
 <h4 id="不同类型指针间调用规定是怎样的">不同类型指针间调用规定是怎样的？</h4>
@@ -193,7 +189,7 @@ if (!value-&gt;GetAsDictionary(&amp;dict)) return false;
 <p><a href="https://www.chromium.org/developers/coding-style?pli=1#TOC-Object-ownership-and-calling-conventions">calling conventions section of the Chromium style guide</a>有规定。下面列出一些常用的规定。</p>
 
 <ul>
-  <li>如果方法参数里使用<code class="highlighter-rouge">std::unique_ptr&lt;&gt;</code>	，说明该方法需占用传入参数的所有权，调用方需要使用<code class="highlighter-rouge">std::move()</code>来表明转移对象的所有权。需要注意的是，临时对象不需要调用<code class="highlighter-rouge">std::move()</code>转移所有权。</li>
+  <li>如果方法参数里使用<code>std::unique_ptr&lt;&gt;</code>	，说明该方法需占用传入参数的所有权，调用方需要使用<code>std::move()</code>来表明转移对象的所有权。需要注意的是，临时对象不需要调用<code>std::move()</code>转移所有权。</li>
 </ul>
 
 <pre><code class="language-C++">// Foo() 拥有 |bar| 的所有权.
@@ -206,7 +202,7 @@ Foo(std::unique_ptr&lt;Bar&gt;(new Bar()));  // 临时对象不需要调用std::
 </code></pre>
 
 <ul>
-  <li>如果方法的返回值使用<code class="highlighter-rouge">std::unique_ptr&lt;&gt;</code>，说明调用方需要持有返回对象的所有权。这种情况下，当且仅当返回对象类型和临时对象的类型不同时，需要使用<code class="highlighter-rouge">std::move()</code>。</li>
+  <li>如果方法的返回值使用<code>std::unique_ptr&lt;&gt;</code>，说明调用方需要持有返回对象的所有权。这种情况下，当且仅当返回对象类型和临时对象的类型不同时，需要使用<code>std::move()</code>。</li>
 </ul>
 
 <pre><code class="language-C++">class Base { ... };
@@ -231,20 +227,20 @@ std::unique_ptr&lt;Base&gt; Foo(std::unique_ptr&lt;Base&gt; base) {
 </code></pre>
 
 <ul>
-  <li>如果方法传入或者返回裸指针，表示无需所有权转移。Chromium在<code class="highlighter-rouge">std::unique_ptr&lt;&gt;</code>存在之前写的一些代码，或者不熟悉所有权转移的程序员写的代码，可能会在传入或者返回裸指针的时候也使用<code class="highlighter-rouge">std::move()</code>转移了所有权。但是这样做是不安全的，编译器并不能执行正确的表现。去掉这样的代码吧，方法传入或者返回裸指针时，绝对不要转移所有权。</li>
+  <li>如果方法传入或者返回裸指针，表示无需所有权转移。Chromium在<code>std::unique_ptr&lt;&gt;</code>存在之前写的一些代码，或者不熟悉所有权转移的程序员写的代码，可能会在传入或者返回裸指针的时候也使用<code>std::move()</code>转移了所有权。但是这样做是不安全的，编译器并不能执行正确的表现。去掉这样的代码吧，方法传入或者返回裸指针时，绝对不要转移所有权。</li>
 </ul>
 
 <h4 id="可以通过引用传递参数或者返回值吗">可以通过引用传递参数或者返回值吗？</h4>
 
 <p>不要这样做。</p>
 
-<p>原理上来说，传入<code class="highlighter-rouge">const std::unique_ptr&lt;T&gt; &amp;</code>参数并且不转移所有权比传入<code class="highlighter-rouge">T*</code>有优势，这样做可以防止调用方传入错误的参数(譬如把 int 转成了 T*)，而且调用方必须确保方法调用周期内传入对象不会被释放。但是，这样调用方就必须把传入对象生成在堆上，即使调用方原本可以使对象生成在栈上。这里传入裸指针相比传入<code class="highlighter-rouge">const std::unique_ptr&lt;T&gt; &amp;</code>的好处是，可以将对象所有权的问题和对象生成的问题解耦。为了简洁和统一，我们避免开发人员去权衡这些利弊，总是使用裸指针就好了。</p>
+<p>原理上来说，传入<code>const std::unique_ptr&lt;T&gt; &amp;</code>参数并且不转移所有权比传入<code>T*</code>有优势，这样做可以防止调用方传入错误的参数(譬如把 int 转成了 T*)，而且调用方必须确保方法调用周期内传入对象不会被释放。但是，这样调用方就必须把传入对象生成在堆上，即使调用方原本可以使对象生成在栈上。这里传入裸指针相比传入<code>const std::unique_ptr&lt;T&gt; &amp;</code>的好处是，可以将对象所有权的问题和对象生成的问题解耦。为了简洁和统一，我们避免开发人员去权衡这些利弊，总是使用裸指针就好了。</p>
 
-<p>有个例外，在lambda表达式中，若将智能指针放在STL容器里作为参数传递，这里为了编译通过，必须使用<code class="highlighter-rouge">const std::unique_ptr&lt;T&gt; &amp;</code>。</p>
+<p>有个例外，在lambda表达式中，若将智能指针放在STL容器里作为参数传递，这里为了编译通过，必须使用<code>const std::unique_ptr&lt;T&gt; &amp;</code>。</p>
 
 <h4 id="我想使用stl容器用来持有指针对象此时可以用智能指针吗">我想使用STL容器用来持有指针对象。此时可以用智能指针吗？</h4>
 
-<p>可以。在C++11里，你可以将智能指针放入STL容器内。而且，不要再使用<code class="highlighter-rouge">ScopedVector&lt;T&gt;</code>了，使用<code class="highlighter-rouge">std::vector&lt;std::unique_ptr&lt;T&gt;&gt;</code>来替代。同样的，再也不要再使用<code class="highlighter-rouge">linked_ptr&lt;T&gt;</code>了，直接把智能智能放在STL容器里使用即可。</p>
+<p>可以。在C++11里，你可以将智能指针放入STL容器内。而且，不要再使用<code>ScopedVector&lt;T&gt;</code>了，使用<code>std::vector&lt;std::unique_ptr&lt;T&gt;&gt;</code>来替代。同样的，再也不要再使用<code>linked_ptr&lt;T&gt;</code>了，直接把智能智能放在STL容器里使用即可。</p>
 
 <h4 id="引用资料">引用资料</h4>
 

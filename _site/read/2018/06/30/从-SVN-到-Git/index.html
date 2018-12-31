@@ -86,10 +86,6 @@
 		<!--
                 
                 <li>
-                    <a href="/apps/">Apps</a>
-                </li>
-                
-                <li>
                     <a href="/about/">关于</a>
                 </li>
                 
@@ -139,7 +135,7 @@
     <div class="row">
       <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1 post-container">
 
-				<p>本文从 Git 与 SVN 的对比入手，介绍如何通过<code class="highlighter-rouge">Git-SVN</code>开始使用 Git，并总结平时工作高频率使用到的 Git 常用命令。</p>
+				<p>本文从 Git 与 SVN 的对比入手，介绍如何通过<code>Git-SVN</code>开始使用 Git，并总结平时工作高频率使用到的 Git 常用命令。</p>
 
 <h2 id="一git-vs-svn">一、Git vs SVN</h2>
 <blockquote>
@@ -150,7 +146,7 @@
 <p>这是 Git 和 SVN 最大的区别。若能掌握这个概念，两者区别基本搞懂大半。因为 Git 是分布式的，所以 Git 支持离线工作，在本地可以进行很多操作，包括接下来将要重磅推出的分支功能。而 SVN 必须联网才能正常工作。</p>
 
 <h3 id="git复杂概念多svn简单易上手">Git复杂概念多，SVN简单易上手</h3>
-<p>所有同时掌握 Git 和 SVN 的开发者都必须承认，Git 的命令实在太多了，日常工作需要掌握<code class="highlighter-rouge">add</code>,<code class="highlighter-rouge">commit</code>,<code class="highlighter-rouge">status</code>,<code class="highlighter-rouge">fetch</code>,<code class="highlighter-rouge">push</code>,<code class="highlighter-rouge">rebase</code>等，若要熟练掌握，还必须掌握<code class="highlighter-rouge">rebase</code>和<code class="highlighter-rouge">merge</code>的区别，<code class="highlighter-rouge">fetch</code>和<code class="highlighter-rouge">pull</code>的区别等，除此之外，还有<code class="highlighter-rouge">cherry-pick</code>，<code class="highlighter-rouge">submodule</code>，<code class="highlighter-rouge">stash</code>等功能，仅是这些名词听着都很绕。</p>
+<p>所有同时掌握 Git 和 SVN 的开发者都必须承认，Git 的命令实在太多了，日常工作需要掌握<code>add</code>,<code>commit</code>,<code>status</code>,<code>fetch</code>,<code>push</code>,<code>rebase</code>等，若要熟练掌握，还必须掌握<code>rebase</code>和<code>merge</code>的区别，<code>fetch</code>和<code>pull</code>的区别等，除此之外，还有<code>cherry-pick</code>，<code>submodule</code>，<code>stash</code>等功能，仅是这些名词听着都很绕。</p>
 
 <p>在易用性这方面，SVN 会好得多，简单易上手，对新手很友好。但是从另外一方面看，Git 命令多意味着功能多，若我们能掌握大部分 Git 的功能，体会到其中的奥妙，会发现再也回不去 SVN 的时代了。</p>
 
@@ -175,9 +171,9 @@
 <p>通常提交代码分为几步：</p>
 
 <ol>
-  <li><code class="highlighter-rouge">git add</code>从工作区提交到暂存区</li>
-  <li><code class="highlighter-rouge">git commit</code>从暂存区提交到本地仓库</li>
-  <li><code class="highlighter-rouge">git push</code>或<code class="highlighter-rouge">git svn dcommit</code>从本地仓库提交到远程仓库</li>
+  <li><code>git add</code>从工作区提交到暂存区</li>
+  <li><code>git commit</code>从暂存区提交到本地仓库</li>
+  <li><code>git push</code>或<code>git svn dcommit</code>从本地仓库提交到远程仓库</li>
 </ol>
 
 <p>一般来说，记住以下命令，便可进行日常工作了（图片来源于网络）：
@@ -188,12 +184,12 @@
   <p>本节命令针对使用 Git-SVN 的开发者，请务必掌握。</p>
 </blockquote>
 
-<p>若服务器使用的 SVN，但是本地想要体验 Git 的本地分支，离线操作等功能，可以使用 <code class="highlighter-rouge">Git-SVN</code>功能。</p>
+<p>若服务器使用的 SVN，但是本地想要体验 Git 的本地分支，离线操作等功能，可以使用 <code>Git-SVN</code>功能。</p>
 
 <p>常用操作如下（图片来源于网络）：
 <img src="http://ronhu.me/img/git-svn-workflow.png" alt="git-svn workflow" /></p>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 下载一个 SVN 项目和它的整个代码历史，并初始化为 Git 代码库
+<pre><code># 下载一个 SVN 项目和它的整个代码历史，并初始化为 Git 代码库
 $ git svn clone -s [repository]
 
 # 查看当前版本库情况
@@ -214,21 +210,21 @@ $ svn copy [remote_branch] [new_remote_branch] -m [message]
 # 创建远程分支对应的本地分支
 $ git checkout -b [local_branch] [remote_branch]
 
-</code></pre></div></div>
+</code></pre>
 
 <h2 id="四初始化">四、初始化</h2>
 <blockquote>
-  <p>从本节开始，除特殊说明，以下命令均适用于 Git 与 <code class="highlighter-rouge">Git-SVN</code>。</p>
+  <p>从本节开始，除特殊说明，以下命令均适用于 Git 与 <code>Git-SVN</code>。</p>
 </blockquote>
 
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 在当前目录新建一个Git代码库
+<pre><code># 在当前目录新建一个Git代码库
 $ git init
 
 # 下载一个项目和它的整个代码历史 [Git only]
 $ git clone [url]
-</code></pre></div></div>
+</code></pre>
 <h2 id="五配置">五、配置</h2>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 列举所有配置
+<pre><code># 列举所有配置
 $ git config -l
 
 # 为命令配置别名
@@ -241,13 +237,13 @@ $ git config --global alias.br branch
 $ git config [--global] user.name "[name]"
 $ git config [--global] user.email "[email address]"
 
-</code></pre></div></div>
-<p>Git 用户的配置文件位于 <code class="highlighter-rouge">~/.gitconfig </code></p>
+</code></pre>
+<p>Git 用户的配置文件位于 <code>~/.gitconfig </code></p>
 
-<p>Git 单个仓库的配置文件位于 <code class="highlighter-rouge">~/$PROJECT_PATH/.git/config</code></p>
+<p>Git 单个仓库的配置文件位于 <code>~/$PROJECT_PATH/.git/config</code></p>
 
 <h2 id="六增删文件">六、增删文件</h2>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 添加当前目录的所有文件到暂存区
+<pre><code># 添加当前目录的所有文件到暂存区
 $ git add .
 
 # 添加指定文件到暂存区
@@ -265,11 +261,11 @@ $ git rm --cached [file]
 # 改名文件，并且将这个改名放入暂存区
 $ git mv [file-original] [file-renamed]
 
-</code></pre></div></div>
+</code></pre>
 <p>把文件名 file1 添加到 .gitignore 文件里，Git 会停止跟踪 file1 的状态。</p>
 
 <h2 id="七分支">七、分支</h2>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 列出所有本地分支
+<pre><code># 列出所有本地分支
 $ git branch
 
 # 列出所有本地分支和远程分支
@@ -293,10 +289,10 @@ $ git cherry-pick [commit]
 # 删除分支，-D 参数强制删除分支
 $ git branch -d [branch-name]
 
-</code></pre></div></div>
+</code></pre>
 
 <h2 id="八提交">八、提交</h2>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 提交暂存区到仓库区
+<pre><code># 提交暂存区到仓库区
 $ git commit -m [message]
 
 # 提交工作区与暂存区的变化直接到仓库区
@@ -310,10 +306,10 @@ $ git commit --amend -m [message]
 
 # 上传本地指定分支到远程仓库
 $ git push [remote] [branch]
-</code></pre></div></div>
+</code></pre>
 
 <h2 id="九拉取">九、拉取</h2>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 下载远程仓库的所有变动 [Git only]
+<pre><code># 下载远程仓库的所有变动 [Git only]
 $ git fetch [remote]
 
 # 显示所有远程仓库 [Git only]
@@ -331,10 +327,10 @@ $ git pull [remote] [branch]
 # 取回远程仓库的变化，并与本地分支变基合并，[Git only], 若使用 Git-SVN，请查看第三节
 $ git pull --rebase [remote] [branch]
 
-</code></pre></div></div>
+</code></pre>
 
 <h2 id="十撤销">十、撤销</h2>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 恢复暂存区的指定文件到工作区
+<pre><code># 恢复暂存区的指定文件到工作区
 $ git checkout [file]
 
 # 恢复暂存区当前目录的所有文件到工作区
@@ -363,10 +359,10 @@ $ git stash
 
 # 将储藏区的内容恢复到当前工作区
 $ git stash pop
-</code></pre></div></div>
+</code></pre>
 
 <h2 id="十一查询">十一、查询</h2>
-<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># 查看工作区文件修改状态
+<pre><code># 查看工作区文件修改状态
 $ git status               
 
 # 查看工作区文件修改具体内容   
@@ -386,11 +382,11 @@ $ git log -p [file]
 
 # 查看某次提交具体修改内容
 $ git show [commit]         
-</code></pre></div></div>
+</code></pre>
 
 <h2 id="十二其他">十二、其他</h2>
 <h3 id="写在后面">写在后面</h3>
-<p>从 SVN 到 Git，除本文列举的基础概念和常用命令，包括但不限于<code class="highlighter-rouge">如何从 SVN 服务器切换到 Git 服务器</code>，<code class="highlighter-rouge">分支模型管理</code>等也非常重要。本文篇幅有限，针对没有介绍到但很重要的知识点会列举到参考资料里，希望作为本文的延伸阅读。</p>
+<p>从 SVN 到 Git，除本文列举的基础概念和常用命令，包括但不限于<code>如何从 SVN 服务器切换到 Git 服务器</code>，<code>分支模型管理</code>等也非常重要。本文篇幅有限，针对没有介绍到但很重要的知识点会列举到参考资料里，希望作为本文的延伸阅读。</p>
 
 <h3 id="参考资料">参考资料</h3>
 <ol>

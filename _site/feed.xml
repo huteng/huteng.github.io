@@ -5,13 +5,1397 @@
     <description>知行合一</description>
     <link>http://localhost:4000/</link>
     <atom:link href="http://localhost:4000/feed.xml" rel="self" type="application/rss+xml" />
-    <pubDate>Sat, 30 Jun 2018 16:38:46 +0800</pubDate>
-    <lastBuildDate>Sat, 30 Jun 2018 16:38:46 +0800</lastBuildDate>
+    <pubDate>Mon, 31 Dec 2018 22:01:48 +0800</pubDate>
+    <lastBuildDate>Mon, 31 Dec 2018 22:01:48 +0800</lastBuildDate>
     <generator>Jekyll v3.6.2</generator>
     
       <item>
+        <title>关联对象的使用与原理</title>
+        <description>&lt;h1 id=&quot;关联对象的使用与原理&quot;&gt;关联对象的使用与原理&lt;/h1&gt;
+
+&lt;p&gt;关联对象是做 iOS 开发经常使用的技术之一，合理使用关联对象能发挥代码的更大威力。在实现关联对象的过程中，我们也来挖掘关联对象在 iOS 框架里的实现原理。&lt;/p&gt;
+
+&lt;h2 id=&quot;为什么需要关联对象&quot;&gt;为什么需要关联对象&lt;/h2&gt;
+
+&lt;h3 id=&quot;property-与-category&quot;&gt;Property 与 Category&lt;/h3&gt;
+
+&lt;p&gt;Property 在 Class 中声明，编译器会为类默认做两件事：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;生成实例变量。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;声明并生成&lt;/strong&gt;对应的 Getter 方法和 Setter 方法。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;若在 Category 中使用 Property，编译器仅会做一件事：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;声明 Getter 方法和 Setter 方法。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;注意这里并没有生成实例变量，也没有实现对象的方法。这一点我们写代码很容易验证，在此就不赘述了。&lt;/p&gt;
+
+&lt;h3 id=&quot;为什么-property-在-category-中能力被削弱&quot;&gt;为什么 Property 在 Category 中能力被削弱？&lt;/h3&gt;
+
+&lt;p&gt;但是为什么 iOS 会这么设计呢？简单来讲，有两条：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;实例对象生成时，就需要确定内存大小。&lt;/li&gt;
+  &lt;li&gt;Category 是运行时加载进内存的，并且可以运行时动态生成。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;当 Class 通过 alloc 实例化对象时，操作系统会在堆上为 iOS 分配对应的存储空间。而分配内存的大小，需要根据 Class 中的实例变量来决定，该信息则是存储在对应的类对象上的。例如在 64 位机器上， int 通常分配 4 个字节，指针分配 8 个字节。若 Class 包含一个 int 和一个指针，则它的实例对象占用 12 个字节。分配的顺序也是根据代码中的位置来决定的。&lt;/p&gt;
+
+&lt;p&gt;如果 Category 可以生成实例变量，则会导致在不同阶段生成的实例对象占用的内存空间不一致，这基本上颠覆了程序的认知。那么为什么可以在 Category 中使用方法和类方法呢，这得益于 &lt;a href=&quot;http://ronhu.me/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/&quot;&gt;iOS 的运行时机制&lt;/a&gt;：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Class 在底层是以结构体的形式存在的。在 runtime 机制，当程序初始化，iOS 框架会根据 Class 的结构体定义生成对应的&lt;code&gt;类对象&lt;/code&gt;和&lt;code&gt;元类对象&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;Category 在底层也是以结构体的形式存在的，在程序初始化后，会依一定的规则将 Category 中的方法与类方法加载到类对象和元类对象中。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;在-category-中使用成员变量的场景&quot;&gt;在 Category 中使用成员变量的场景&lt;/h3&gt;
+
+&lt;p&gt;在开发过程中，确实有在 Category 中使用成员变量的场景，如果没有关联对象，我们可能会这么做：&lt;code&gt;使用全局 NSDictionary，记录 self 和对应变量的关系。&lt;/code&gt;。思路基本上没有问题，但是在使用过程中，我们要需要考虑内存管理，生成与释放，多线程等场景，如果要完整的实现这套功能，开发量是很大而且容易实现出问题的。幸运的时，iOS 已经为我们实现了这一切，这便是&lt;code&gt;关联对象&lt;/code&gt;。&lt;/p&gt;
+
+&lt;h2 id=&quot;关联对象基本使用&quot;&gt;关联对象基本使用&lt;/h2&gt;
+
+&lt;h3 id=&quot;关联对象的基本使用&quot;&gt;关联对象的基本使用&lt;/h3&gt;
+
+&lt;p&gt;iOS 上关联对象使用非常简单，常用的就下面三个接口：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// 添加关联对象
+void objc_setAssociatedObject(id object, void *key, id value, objc_AssociationPolicy policy);
+// 获得关联对象
+id objc_getAssociatedObject(id object, const void *key);
+// 移除所有的关联对象
+void objc_removeAssociatedObject(id object);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&quot;使用注意点&quot;&gt;使用注意点&lt;/h3&gt;
+
+&lt;p&gt;其中，objc_AssociationPolicy 定义了内存管理的方法：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;typedef OBJC_ENUM(uintptr_t, objc_AssociationPolicy) {
+    OBJC_ASSOCIATION_ASSIGN = 0,           /**&amp;lt; Specifies a weak reference to the associated object. */
+    OBJC_ASSOCIATION_RETAIN_NONATOMIC = 1, /**&amp;lt; Specifies a strong reference to the associated object. 
+    OBJC_ASSOCIATION_COPY_NONATOMIC = 3,   /**&amp;lt; Specifies that the associated object is copied. 
+    OBJC_ASSOCIATION_RETAIN = 01401,       /**&amp;lt; Specifies a strong reference to the associated object.
+    OBJC_ASSOCIATION_COPY = 01403          /**&amp;lt; Specifies that the associated object is copied.
+};
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在 &lt;code&gt;objc_setAssociatedObject&lt;/code&gt;和&lt;code&gt;objc_getAssociatedObject&lt;/code&gt;方法中，key是声明为 &lt;code&gt;void *&lt;/code&gt;，通常我们有几种使用方法：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// 方案1, 直接声明 void * 使用
+static const void *HTNameKey = &amp;amp;HTNameKey;
+id objc_getAssociatedObject(self, HTNameKey);
+// 方案2，使用全局变量的内存地址
+static const char MyKey;
+id objc_getAssociatedObject(self, &amp;amp;MyKey);
+// 方案3，在方法中使用 @selector 或 _cmd 作key
+id objc_getAssociatedObject(self, @selector(name));
+id objc_getAssociatedObject(self, _cmd);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h3 id=&quot;使用实例&quot;&gt;使用实例&lt;/h3&gt;
+
+&lt;p&gt;使用例子，若存在 HTFoo + Key 的 Category，希望在 Category 中存放 key，则可以按照如下实现，可以&lt;strong&gt;模拟&lt;/strong&gt;出动态为类添加成员变量的能力了，注意该实现并不会改变实例变量的内存大小。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// 通过关联对象完善 Category 中 Property 的能力
+@interface HTFoo (Key)
+@property (nonatomic, copy) NSString *key;
+@end
+@implementation HTFoo (Key)
+- (NSString *)key {
+    return objc_getAssociatedObject(self, @selector(key));
+}
+- (void)setKey:(NSString *)key {
+    objc_setAssociatedObject(self, @selector(key), key, OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+@end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h2 id=&quot;关联对象实现原理&quot;&gt;关联对象实现原理&lt;/h2&gt;
+
+&lt;p&gt;说清楚了关联对象的由来和使用方法后，我们通过 runtime 源码来剖析关联对象的实现原理，知晓原理后，在使用关联对象时，我们会更加得心应手。&lt;/p&gt;
+
+&lt;h3 id=&quot;源码摘录&quot;&gt;源码摘录&lt;/h3&gt;
+
+&lt;p&gt;在 &lt;a href=&quot;https://opensource.apple.com/tarballs/objc4/&quot;&gt;runtime 源码&lt;/a&gt;中搜索 &lt;code&gt;objc_getAssociatedObject&lt;/code&gt; 可以在 &lt;code&gt;objc-runtime.mm&lt;/code&gt;中找到实现：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;id objc_getAssociatedObject(id object, const void *key) {
+    return _object_get_associative_reference(object, (void *)key);
+}
+
+void objc_setAssociatedObject(id object, const void *key, id value, objc_AssociationPolicy policy) {
+    _object_set_associative_reference(object, (void *)key, value, policy);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;其中， &lt;code&gt;_object_set_associative_reference&lt;/code&gt; 的实现源码摘录如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;void _object_set_associative_reference(id object, void *key, id value, uintptr_t policy) {
+    // retain the new value (if any) outside the lock.
+    ObjcAssociation old_association(0, nil);
+    // 通过 policy 判断 value 是否需要 retain 或 copy
+    id new_value = value ? acquireValue(value, policy) : nil;
+    {  // 括号的作用是：当 AssociationsManager 离开作用域时，释放自旋锁。
+        AssociationsManager manager;
+        AssociationsHashMap &amp;amp;associations(manager.associations());
+        disguised_ptr_t disguised_object = DISGUISE(object);
+        if (new_value) {
+            // break any existing association.
+            AssociationsHashMap::iterator i = associations.find(disguised_object);
+            if (i != associations.end()) {
+                // secondary table exists
+                ObjectAssociationMap *refs = i-&amp;gt;second;
+                ObjectAssociationMap::iterator j = refs-&amp;gt;find(key);
+                if (j != refs-&amp;gt;end()) {
+                    old_association = j-&amp;gt;second;
+                    j-&amp;gt;second = ObjcAssociation(policy, new_value);
+                } else {
+                    (*refs)[key] = ObjcAssociation(policy, new_value);
+                }
+            } else {
+                // create the new association (first time).
+                ObjectAssociationMap *refs = new ObjectAssociationMap;
+                associations[disguised_object] = refs;
+                (*refs)[key] = ObjcAssociation(policy, new_value);
+                // 标记对象存在关联对象
+                object-&amp;gt;setHasAssociatedObjects();
+            }
+        } else {
+            // setting the association to nil breaks the association.
+            AssociationsHashMap::iterator i = associations.find(disguised_object);
+            if (i !=  associations.end()) {
+                ObjectAssociationMap *refs = i-&amp;gt;second;
+                ObjectAssociationMap::iterator j = refs-&amp;gt;find(key);
+                if (j != refs-&amp;gt;end()) {
+                    old_association = j-&amp;gt;second;
+                    refs-&amp;gt;erase(j);
+                }
+            }
+        }
+    }
+    // release the old value (outside of the lock).
+    if (old_association.hasValue()) ReleaseValue()(old_association);
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;执行步骤为：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;通过 AssociationsManager 获取 AssociationsHashMap。&lt;/li&gt;
+  &lt;li&gt;若传入的 value 不为空，则更新对应的 ObjectAssociationMap 与 ObjcAssociation。&lt;/li&gt;
+  &lt;li&gt;若传入的 value 为 nil，则删除对应的 ObjcAssociation。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;&lt;code&gt;_object_get_associative_reference&lt;/code&gt;如下：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;id _object_get_associative_reference(id object, void *key) {
+    id value = nil;
+    uintptr_t policy = OBJC_ASSOCIATION_ASSIGN;
+    { // 括号的作用是：当 AssociationsManager 离开作用域时，释放自旋锁。
+        AssociationsManager manager;
+        AssociationsHashMap &amp;amp;associations(manager.associations());
+        disguised_ptr_t disguised_object = DISGUISE(object);
+        AssociationsHashMap::iterator i = associations.find(disguised_object);
+        if (i != associations.end()) {
+            ObjectAssociationMap *refs = i-&amp;gt;second;
+            ObjectAssociationMap::iterator j = refs-&amp;gt;find(key);
+            if (j != refs-&amp;gt;end()) {
+                ObjcAssociation &amp;amp;entry = j-&amp;gt;second;
+                value = entry.value();
+                policy = entry.policy();
+                if (policy &amp;amp; OBJC_ASSOCIATION_GETTER_RETAIN) {
+                    objc_retain(value);
+                }
+            }
+        }
+    }
+    if (value &amp;amp;&amp;amp; (policy &amp;amp; OBJC_ASSOCIATION_GETTER_AUTORELEASE)) {
+        objc_autorelease(value);
+    }
+    return value;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;执行步骤为：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;通过 AssociationsManager 获取 AssociationsHashMap。&lt;/li&gt;
+  &lt;li&gt;通过 &lt;code&gt;DISGUISE(object)&lt;/code&gt; 获取 ObjectAssociationMap。&lt;/li&gt;
+  &lt;li&gt;通过 key 获取 ObjcAssociation。&lt;/li&gt;
+  &lt;li&gt;以上任意一步获取不到，均返回 nil。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;核心类分析&quot;&gt;核心类分析&lt;/h3&gt;
+
+&lt;p&gt;核心源码不长，也比较好理解，在其中有四个值得注意的对象，源码可以通过官网下载查阅细节：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;AssociationsManager
+    &lt;ul&gt;
+      &lt;li&gt;线程安全的单例对象，存储了 AssociationsHashMap 的 static 实例对象。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;AssociationsHashMap
+    &lt;ul&gt;
+      &lt;li&gt;继承至 &lt;code&gt;std::unordered_map&lt;/code&gt;，key 是&lt;code&gt;disguised_ptr_t&lt;/code&gt;，value 是 &lt;code&gt;ObjectAssociationMap&lt;/code&gt;。&lt;/li&gt;
+      &lt;li&gt;其中 key 通过 &lt;code&gt;DISGUISE(object)&lt;/code&gt;方法生成，与实例对象地址一一对应。value 是 ObjectAssociationMap， 用于存储实例对象和关联对象的关系。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;ObjectAssociationMap
+    &lt;ul&gt;
+      &lt;li&gt;继承至 &lt;code&gt;std::map&lt;/code&gt;，key 是 &lt;code&gt;void *&lt;/code&gt;，value 是 &lt;code&gt;ObjcAssociation&lt;/code&gt;。&lt;/li&gt;
+      &lt;li&gt;注意，此处的 key 即是 &lt;code&gt;objc_setAssociatedObject&lt;/code&gt; 传入的 &lt;code&gt;void * &lt;/code&gt;参数。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;ObjcAssociation
+    &lt;ul&gt;
+      &lt;li&gt;存储传入参数的 policy 、value。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;用图示表示关系为：&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://ronhu.me/img/association-object.png&quot; alt=&quot;association-object&quot; /&gt;&lt;/p&gt;
+
+&lt;h3 id=&quot;注意细节点&quot;&gt;注意细节点&lt;/h3&gt;
+
+&lt;p&gt;通过解剖源码，我们得到了如下注意点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;关联对象的存在并不会影响实例对象的大小。&lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;将 value 设置为 nil，会移除掉对应的关联对象 ObjectAssociation。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;AssociationsManager 通过自旋锁保证 AssociationsHashMap 的读取是线程安全的。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;总结&quot;&gt;总结&lt;/h2&gt;
+
+&lt;p&gt;本文从为什么需要关联对象出发，介绍了关联对象的使用场景和使用方法，以及一些使用时的注意点。最后通过剖析源码实现，从源码层面知晓了关联对象的使用策略与方法。&lt;/p&gt;
+</description>
+        <pubDate>Mon, 31 Dec 2018 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/read/2018/12/31/%E5%85%B3%E8%81%94%E5%AF%B9%E8%B1%A1%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E5%8E%9F%E7%90%86/</link>
+        <guid isPermaLink="true">http://localhost:4000/read/2018/12/31/%E5%85%B3%E8%81%94%E5%AF%B9%E8%B1%A1%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E5%8E%9F%E7%90%86/</guid>
+        
+        <category>iOS</category>
+        
+        
+        <category>read</category>
+        
+      </item>
+    
+      <item>
+        <title>Effective Objective-C 2.0读书笔记</title>
+        <description>&lt;p&gt;本月重温了《Effective Objective-C 2.0》，受益颇多。记录盲区与重点知识，以做备忘。&lt;/p&gt;
+
+&lt;h2 id=&quot;三多用字面量语法少用与之等价的方法&quot;&gt;三、多用字面量语法，少用与之等价的方法&lt;/h2&gt;
+
+&lt;p&gt;用字面量语法的好处：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;代码精简。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;异常检查。&lt;/p&gt;
+
+    &lt;pre&gt;&lt;code&gt;NSObject *obj1 = [[NSObject alloc] init];
+NSObject *obj2 = nil;
+NSObject *obj3 = [[NSObject alloc] init];
+   
+// 若有nil，arrayA只有一个obj，arrayB会抛出异常。
+NSArray *arrayA = [NSArray arrayWithObjects:obj1, obj2, obj3, nil];
+NSArray *arrayB = @[obj1, obj2, obj3];
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;四多用类型常量少用-define-预处理指令&quot;&gt;四、多用类型常量，少用 #define 预处理指令&lt;/h2&gt;
+
+&lt;h4 id=&quot;异同点&quot;&gt;异同点：&lt;/h4&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;重复定义。宏允许重复定义，类型常量不会。&lt;/li&gt;
+  &lt;li&gt;类型检查。宏没有类型检查，类型常量有类型检查。&lt;/li&gt;
+  &lt;li&gt;宏功能强大。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;static-关键字的作用&quot;&gt;static 关键字的作用：&lt;/h4&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;用在全局变量，表明这个变量在每个&lt;strong&gt;编译单元&lt;/strong&gt;有独自的实例。&lt;/li&gt;
+  &lt;li&gt;用在函数里的局部变量，表明它的生存周期其实是全局变量，但仅在函数内可见。&lt;/li&gt;
+  &lt;li&gt;用在类成员，表明成员或者方法是类的，而不是对象实例的。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;static-const-与-const-的区别&quot;&gt;static const 与 const 的区别：&lt;/h4&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;static const 修饰的关键字，是静态不可变全局变量，表明这个变量在每个&lt;strong&gt;编译单元&lt;/strong&gt;有独自的实例，不能在外部被引用。&lt;/li&gt;
+  &lt;li&gt;const 修饰的关键字，是不可变全局变量，表明在&lt;strong&gt;全局符号表&lt;/strong&gt;有定义。其他文件可通过 extern 关键字引用该定义。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;拓展：【全局符号表】&lt;/p&gt;
+
+&lt;h2 id=&quot;五用枚举表示状态选项状态码&quot;&gt;五、用枚举表示状态、选项、状态码&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;C++11 后，可指定枚举类型，引入了前置声明功能。&lt;/li&gt;
+  &lt;li&gt;Objective-C 中，多用 NS_ENUM 与 NS_OPTIONS。&lt;/li&gt;
+  &lt;li&gt;NS_ENUM 与 NS_OPTIONS 的区别在于，后者省去了做 &lt;code&gt;|&lt;/code&gt;时的强制类型转换。（C++中不允许类型隐式转换）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;六理解属性这一概念&quot;&gt;六、理解”属性”这一概念&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;@property 会默认为类生成实例变量、getter方法、setter方法。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;若 @perperty 声明了 @dynamic，则不生成这些信息，且编译能通过。objc 将在运行时去查找相关定义。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;C++ 和 Objective-C 调用实例变量的实现不同。&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;C++ 访问实例变量，在汇编层面访问对应内存的偏移值。（编译时确定）&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;Objective-C 访问实例变量， 将在类对象里查找成员的偏移量，在运行时动态决定访问的具体地址。（运行时确定）&lt;/p&gt;
+
+        &lt;pre&gt;&lt;code&gt;0x105b036ea &amp;lt;+58&amp;gt;:  movq   %rax, -0x10(%rbp)
+// rax存放的是实例对象的地址值。
+0x105b036ee &amp;lt;+62&amp;gt;:  movq   -0x10(%rbp), %rax
+// rip是类对象的地址，rsi存放的是偏移量
+// 这一步比较关键，动态的决定了偏移值。
+0x105b036f2 &amp;lt;+66&amp;gt;:  movq   0x26af(%rip), %rsi        ; WWKPerson.height
+// 赋值操作，将常量10赋值到内存地址
+0x105b036f9 &amp;lt;+73&amp;gt;:  movq   $0xa, (%rax,%rsi)
+&lt;/code&gt;&lt;/pre&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;八理解对象等同性这一概念&quot;&gt;八、理解“对象等同性”这一概念&lt;/h2&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;异同点：
+    &lt;ol&gt;
+      &lt;li&gt;&lt;code&gt;==&lt;/code&gt;是比较指针地址，当指针的对象相同时，返回为YES。&lt;/li&gt;
+      &lt;li&gt;isEqual:&lt;code&gt;默认实现是判断&lt;/code&gt;A == B。&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;hash&lt;/code&gt;默认实现是返回对象地址值。&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;若要实现自定义对象的比较，应该注意：
+    &lt;ol&gt;
+      &lt;li&gt;实现&lt;code&gt;isEqual:&lt;/code&gt;方法，利用自定义条件比较一致性。&lt;/li&gt;
+      &lt;li&gt;实现&lt;code&gt;hash&lt;/code&gt;方法，相同对象返回同样的hash值。&lt;/li&gt;
+      &lt;li&gt;注意&lt;code&gt;hash&lt;/code&gt;的实现效率和哈希碰撞，多以成员的hash做&lt;code&gt;^&lt;/code&gt;运算来实现。&lt;/li&gt;
+      &lt;li&gt;实现&lt;code&gt;isEqual:&lt;/code&gt;时，应先判断对象，再判断值。&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;NSMutableSet&lt;/code&gt;的容器中，判断对象相同的条件是：
+    &lt;ol&gt;
+      &lt;li&gt;&lt;code&gt;isEqual:&lt;/code&gt;为YES。&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;hash&lt;/code&gt;相同。&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;NSMutableDictionary&lt;/code&gt;的 key 比较：
+    &lt;ol&gt;
+      &lt;li&gt;调用 NSCopying 的 copyWithZone: 方法获取对象。&lt;/li&gt;
+      &lt;li&gt;调用 key 的&lt;code&gt;hash&lt;/code&gt;决定放在哪个&lt;code&gt;bucket&lt;/code&gt;中。（提升效率用）&lt;/li&gt;
+      &lt;li&gt;利用 key 的 &lt;code&gt;isEqual:&lt;/code&gt;判断 &lt;code&gt;key&lt;/code&gt;使用相同。（注意不会依赖于 hash 的值）。&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;九以类族模式隐藏实现细节&quot;&gt;九、以“类族模式”隐藏实现细节&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;NSArray、NSMutableArray实际上都是类族基类，其中并没有持有数据。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;十关联对象存放自定义数据&quot;&gt;十、关联对象存放自定义数据&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;NSDcitionary&lt;/code&gt;的 key 用 &lt;code&gt;isEqual:&lt;/code&gt;来判断等同性。&lt;code&gt;objc_setAssociatedObject&lt;/code&gt;的 key 利用&lt;code&gt;==&lt;/code&gt;来判断等同性。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;十一理解-objc_msgsend-的作用&quot;&gt;十一、理解 objc_msgSend 的作用&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;类对象有方法列表缓存。&lt;/li&gt;
+  &lt;li&gt;消息发送有几种情况：
+    &lt;ul&gt;
+      &lt;li&gt;objc_msgSend 处理普通消息发送。&lt;/li&gt;
+      &lt;li&gt;objc_msgsend_stret 处理返回值是结构体，且 CPU 的寄存器能够存放下返回类型的情况。若结构体太大，则交由另外的函数派发，返回值交由栈帧上的某个变量来处理。（实测这里好像有变动，不是书里说的这样了）&lt;/li&gt;
+      &lt;li&gt;objc_msgSend_fpret 处理返回值是浮点数的情况。&lt;/li&gt;
+      &lt;li&gt;objc_msgSendSuper 处理给超类发消息的情况。在其中也有两个与 &lt;code&gt;objc_msgsend_stret&lt;/code&gt;和 &lt;code&gt;objc_msgSend_fpret&lt;/code&gt;等效的方法。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;尾调用优化(tail-call optimization)。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;十二理解消息转发机制&quot;&gt;十二、理解消息转发机制&lt;/h2&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;动态方法解析（dynamic method resolution）。
+    &lt;ol&gt;
+      &lt;li&gt;&lt;code&gt;+(BOOL) resolveInstanceMethod:(SEL)selector&lt;/code&gt;或&lt;code&gt;+(BOOL)resolveClassMethod:(SEL)selector&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;通常配合 &lt;code&gt;@dynamic&lt;/code&gt; 和 &lt;code&gt;class_addMethod&lt;/code&gt;使用。&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;备援接受者（replacement receiver）。
+    &lt;ol&gt;
+      &lt;li&gt;&lt;code&gt;-(id)forwardingTargetForSelector(SEL)selector&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;可模拟多重继承。&lt;/li&gt;
+      &lt;li&gt;这一步无法修改发送消息，若需修改，则需到下一步处理。&lt;/li&gt;
+      &lt;li&gt;配合 NSProxy 使用。&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+  &lt;li&gt;完整的消息转发机制（full forwarding mechanism）。
+    &lt;ol&gt;
+      &lt;li&gt;&lt;code&gt;-(void)forwardInvocation:(NSInvocation *)invacation&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;通常在该方法里，修改调用参数或更换 &lt;code&gt;SEL&lt;/code&gt;。&lt;/li&gt;
+      &lt;li&gt;&lt;code&gt;- (NSMethodSignature *)methodSignatureForSelector:(SEL)aSelector&lt;/code&gt;中覆盖方法签名，该方法在第2步和第3步之间调用。&lt;/li&gt;
+    &lt;/ol&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;十三用方法调配技术调试黑盒方法&quot;&gt;十三、用“方法调配技术”调试“黑盒方法”&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;又称为：Method Swizzling
+    &lt;ul&gt;
+      &lt;li&gt;IMP定义为：&lt;code&gt;id (*)IMP(id, SEL, ...)&lt;/code&gt;&lt;/li&gt;
+      &lt;li&gt;Method定义为：&lt;code&gt;typedef struct objc_method *Method&lt;/code&gt;，是IMP的封装。&lt;/li&gt;
+      &lt;li&gt;selector和IMP的关系，通过选择器表（selector table）来映射。修改关系表，实际上修改的就是 selector table。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;多与 &lt;code&gt;+(void)load&lt;/code&gt; 配合使用。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;十四理解类对象的用意&quot;&gt;十四、理解“类对象”的用意&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;isMemberOfClass:&lt;/code&gt;判断对象是否为某个特定类的实例。&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;isKindOfClass:&lt;/code&gt;判断对象是否为某类或其父类的实例。&lt;/li&gt;
+  &lt;li&gt;比较类对象是否等同，尽量使用上述方法来判断，而不是直接使用&lt;code&gt;==&lt;/code&gt;判断，因为前者可能实现了消息转发工功能（譬如NSProxy的子类）。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;十七实现-description-方法&quot;&gt;十七、实现 description 方法&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;覆盖 description 用于 log 时使用。&lt;/li&gt;
+  &lt;li&gt;覆盖 debugDescription 用于 LLVM &lt;code&gt;po&lt;/code&gt; 时使用。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;十八尽量使用不可变对象&quot;&gt;十八、尽量使用不可变对象&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;对外暴露的对象，若不希望修改，则声明 &lt;code&gt;@property&lt;/code&gt; 为 &lt;code&gt;readonly&lt;/code&gt;。若内部希望修改，则在类扩展里声明为 &lt;code&gt;readwrite&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;即使声明为了 readonly，调用者仍可以通过 &lt;code&gt;KVC&lt;/code&gt;，内存偏移硬编码等方式进行修改，但是通常不建议这样做。&lt;/li&gt;
+  &lt;li&gt;如果内部是可变容器(NSMutableArray)，返回值为不可变容器(NSArray)，外层实际上拿到的是 NSArray 指针，但是指向了 NSMutableArray 的内容，存在被调用者修改的风险。作为类提供者，比较合理的是，返回时进行一次 copy 操作。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;二十一理解-objective-c-错误模型&quot;&gt;二十一、理解 Objective-C 错误模型&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;&lt;code&gt;NSException&lt;/code&gt;多用于非常严重的错误，当使用 NSException 时，程序会因为异常退出。&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;NSError&lt;/code&gt;用来传递错误信息。
+    &lt;ul&gt;
+      &lt;li&gt;通常传入参数为&lt;code&gt;NSError **&lt;/code&gt;，相当于分配了堆上的指针，编译器默认加&lt;code&gt;autorelease&lt;/code&gt;。&lt;/li&gt;
+      &lt;li&gt;NSError通常包含三个信息：&lt;code&gt;Error Domain&lt;/code&gt;，&lt;code&gt;Error Code&lt;/code&gt;，&lt;code&gt;User Info&lt;/code&gt;。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;二十二理解-nscopying-协议&quot;&gt;二十二、理解 NSCopying 协议&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;NSCopying协议对应的&lt;code&gt;copy&lt;/code&gt;方法，NSMutableCopy对应的&lt;code&gt;mutableCopy&lt;/code&gt;方法。&lt;/li&gt;
+  &lt;li&gt;默认情况下，copy返回不可变对象，mutableCopy返回可变对象。&lt;/li&gt;
+  &lt;li&gt;copy与mutableCopy默认都是浅拷贝。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;二十三通过委托和数据源协议进行对象间通信&quot;&gt;二十三、通过委托和数据源协议进行对象间通信&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;用 &lt;code&gt;bitfield&lt;/code&gt;缓存方法响应&lt;code&gt;respondToSelector:&lt;/code&gt;结果，加快判断。&lt;/p&gt;
+
+    &lt;pre&gt;&lt;code class=&quot;language-objc&quot;&gt;struct delegateFlags {
+    unsigned char didChangeNameWith : 1;
+    unsigned char didUpgradeAgeWith : 1;
+    unsigned char didAddNewFriendWith : 1;
+} _delegateFlags;
+  
+- (void)setDelegate:(id&amp;lt;WWKPersonDelegate&amp;gt;)delegate {
+    _delegate = delegate;
+    _delegateFlags.didChangeNameWith = [self.delegate respondsToSelector:@selector(person:didChangeNameWith:)];
+    _delegateFlags.didUpgradeAgeWith = [self.delegate respondsToSelector:@selector(person:didUpgradeAgeWith:)];
+    _delegateFlags.didAddNewFriendWith = [self.delegate respondsToSelector:@selector(person:didAddNewFriendWith:)];
+}
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;二十九理解引用计数&quot;&gt;二十九、理解引用计数&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;对象所占的内存在”deallocated”后，只是放回“可用内存池”(avaiable pool)。如果访问野指针时，内存没有被覆盖，那么该对象仍然有效，此时应用也不会崩溃。因此，防止野指针比较好的方式是，内存释放后，把对应的指针也置nil。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;三十以-arc-简化引用计数&quot;&gt;三十、以 ARC 简化引用计数&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;ARC 的优化：
+    &lt;ul&gt;
+      &lt;li&gt;ARC 的引用计数实际上还是要执行的，只不过保留和释放操作是ARC在编译阶段自动添加的。通过汇编可以明确看到有调用 release 方法，调用版本是底层的 C 函数，而不是通过消息发送机制。&lt;/li&gt;
+      &lt;li&gt;ARC 会通过优化调用方法&lt;code&gt;objc_autoreleaseReturnValue、objc_retainAuthreleaseReturnValue&lt;/code&gt;等，来减少 retain，release的调用。&lt;/li&gt;
+      &lt;li&gt;ARC 还有其他的优化策略。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;dealloc：&lt;/p&gt;
+
+    &lt;ul&gt;
+      &lt;li&gt;
+        &lt;p&gt;析构时，&lt;code&gt;dealloc&lt;/code&gt; 会调用编译器会自动生成的&lt;code&gt;.cxx_destruct&lt;/code&gt;方法，在其中释放对象，包括 C++ 成员对象。&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;手动在堆里分配的内存与&lt;code&gt;CoreFoundation&lt;/code&gt;的对象，仍需要在 dealloc 中主动释放。&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;dealloc 调用的线程不一定，取决于引用计数置0时的线程。所以在dealloc里做只能主线程访问的操作时，需要额外小心。&lt;/p&gt;
+      &lt;/li&gt;
+      &lt;li&gt;
+        &lt;p&gt;程序异常退出时，dealloc不一定会被调用。&lt;/p&gt;
+      &lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;三十四以自动释放池块降低内存峰值&quot;&gt;三十四、以“自动释放池块”降低内存峰值&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;利用 &lt;code&gt;@autoreleasepool&lt;/code&gt;降低循环里的内存峰值。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;三十五用僵尸对象调试内存管理问题&quot;&gt;三十五、用“僵尸对象”调试内存管理问题&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;开启&lt;code&gt;NSZombieEnable&lt;/code&gt;调试野指针问题。当内存被标记回收时，不会真正释放，而转化为特殊的&lt;code&gt;僵尸对象&lt;/code&gt;。当向这种对象发送消息时，系统会抛出异常，方便调试。&lt;/li&gt;
+  &lt;li&gt;僵尸对象原理是，当实例对象被释放时，将对象dealloc的实现替换成特殊实现。将该实例对象的isa指向新创建的僵尸类对象。僵尸类对象会接受所有的消息，打印log并且终止应用程序。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;三十七理解-block-这一概念&quot;&gt;三十七、理解 “block” 这一概念&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;block 实际是个对象。&lt;/li&gt;
+  &lt;li&gt;注意 block 分配在哪里。（堆，栈，全局区）&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;第四十一多用派发队列少用同步锁&quot;&gt;第四十一、多用派发队列，少用同步锁&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;
+    &lt;p&gt;@synchronized，底层实现为：&lt;/p&gt;
+
+    &lt;pre&gt;&lt;code&gt;// 忽略异常处理代码
+objc_sync_enter(self)
+id retVal = @&quot;111&quot;;
+objc_sync_exit(self);
+return retVal;
+&lt;/code&gt;&lt;/pre&gt;
+
+    &lt;p&gt;在&lt;code&gt;objc_sync_enter&lt;/code&gt;内部，多个@synchronized会抢夺同一个锁。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;处理多线程读写：&lt;/p&gt;
+    &lt;ul&gt;
+      &lt;li&gt;方式一：加锁。简单场景使用。&lt;/li&gt;
+      &lt;li&gt;方式二：GCD串行队列，同步读，同步或异步写。&lt;/li&gt;
+      &lt;li&gt;方式三：GCD并发队列配合栅栏函数，同步读，barrier异步写。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2 id=&quot;第四十三掌握-gcd-及操作队列的使用时机&quot;&gt;第四十三、掌握 GCD 及操作队列的使用时机&lt;/h2&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;NSOperationQueue相比较于 GCD 队列的优势：
+    &lt;ul&gt;
+      &lt;li&gt;取消指定任务。&lt;/li&gt;
+      &lt;li&gt;设置任务粒度的优先级。&lt;/li&gt;
+      &lt;li&gt;指定任务的依赖关系。&lt;/li&gt;
+      &lt;li&gt;通过 KVO 来观察任务的属性。&lt;/li&gt;
+      &lt;li&gt;可重用 NSOperation 对象。&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        <pubDate>Fri, 30 Nov 2018 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/read/2018/11/30/Effective-Objective-C-2.0%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/</link>
+        <guid isPermaLink="true">http://localhost:4000/read/2018/11/30/Effective-Objective-C-2.0%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/</guid>
+        
+        <category>iOS</category>
+        
+        
+        <category>read</category>
+        
+      </item>
+    
+      <item>
+        <title>Objective-C的类和对象模型</title>
+        <description>&lt;p&gt;本文从 C++ 的角度出发，讲解和剖析 Objective-C 的类和对象模型。&lt;/p&gt;
+
+&lt;h3 id=&quot;一基础知识储备&quot;&gt;一、基础知识储备&lt;/h3&gt;
+
+&lt;p&gt;Objective-C 的底层是用 C/C++ 实现的，在系统讲解 Objective-C 的底层结构之前，我们先来温故一些基础知识。&lt;/p&gt;
+
+&lt;h4 id=&quot;1堆空间栈空间&quot;&gt;1、堆空间、栈空间&lt;/h4&gt;
+
+&lt;p&gt;程序的内存一般分为五块，&lt;code&gt;堆空间&lt;/code&gt;，&lt;code&gt;栈空间&lt;/code&gt;，&lt;code&gt;代码区&lt;/code&gt;，&lt;code&gt;字符常量区&lt;/code&gt;，&lt;code&gt;全局区&lt;/code&gt;。这里我们拎出开发中经常接触到的堆空间和栈空间来讲解。&lt;/p&gt;
+
+&lt;p&gt;栈空间的内存，系统自动管理，出作用域后回收内存。&lt;/p&gt;
+
+&lt;p&gt;堆空间的内存，需要手动管理，多与&lt;code&gt;new&lt;/code&gt;，&lt;code&gt;delete&lt;/code&gt;关键字搭配使用。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c++&quot;&gt;class Foo {
+public:
+    int value1;
+    int value2;    
+    void function() {}
+};
+void test () {
+    // 1. 栈空间，函数作用域外自动回收内存
+    Foo foo;
+    
+    // 2. 堆空间，需手动管理内存
+    // 需注意指针本身的内存在栈空间，指针指向的内容在堆空间
+    Foo *pFoo = new Foo();
+    delete pFoo;
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;在实际的开发过程中，需注意内存分配在栈空间或堆空间。而在Objective-C中，使用&lt;code&gt;new&lt;/code&gt;、&lt;code&gt;alloc&lt;/code&gt;分配的对象都在堆空间上。&lt;/p&gt;
+
+&lt;h4 id=&quot;2函数地址&quot;&gt;2、函数地址&lt;/h4&gt;
+
+&lt;p&gt;在讲解函数地址前，先抛出一个疑问，上面代码的&lt;code&gt;class Foo&lt;/code&gt;，其中有两个&lt;code&gt;int&lt;/code&gt;类型的成员value1、value2，一个成员方法 function()。那么用该类实例化的对象，内存占用多大呢？&lt;/p&gt;
+
+&lt;p&gt;答案：我们用&lt;code&gt;sizeof(foo)&lt;/code&gt;可以得到，对象 &lt;code&gt;foo&lt;/code&gt;占用了8个字节的内存空间，刚好是两个&lt;code&gt;int&lt;/code&gt;类型相加。&lt;/p&gt;
+
+&lt;p&gt;那么这里产生了另外一个疑问，成员方法不占用内存大小吗？— 答案是否定的。&lt;/p&gt;
+
+&lt;p&gt;完整的解释是，成员方法全局只存在一份，拥有全局唯一的函数地址；成员方法会占用全局内存大小，但是不占用实例化对象的内存空间。这个小知识点比较重要，在后续讲解 Objective-C 底层结构时也会提到。&lt;/p&gt;
+
+&lt;h4 id=&quot;3struct-和-class-的区别&quot;&gt;3、struct 和 class 的区别&lt;/h4&gt;
+
+&lt;p&gt;&lt;code&gt;struct&lt;/code&gt; 和 &lt;code&gt;class&lt;/code&gt; 都能用来声明类，他们之间唯一的区别是对成员的权限管理不同，&lt;code&gt;struct&lt;/code&gt;默认权限是&lt;code&gt;public&lt;/code&gt;，&lt;code&gt;class&lt;/code&gt;的默认权限是&lt;code&gt;private&lt;/code&gt;。而Objective-C的类底层结构都会声明为 struct。&lt;/p&gt;
+
+&lt;h3 id=&quot;二objective-c-对象模型&quot;&gt;二、Objective-C 对象模型&lt;/h3&gt;
+
+&lt;p&gt;Objective-C 的底层是用 C/C++ 实现的，在C++之上，Objective-C 封装了一层系统实现，实现了动态消息转发机制。不同于C++，对于 Objective-C 的对象，可以分为三种：&lt;/p&gt;
+
+&lt;ul&gt;
+  &lt;li&gt;instance对象，也称为实例对象。&lt;/li&gt;
+  &lt;li&gt;class对象，也称为类对象。&lt;/li&gt;
+  &lt;li&gt;meta-class对象，也称为元类对象。&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h4 id=&quot;1实例对象&quot;&gt;1、实例对象&lt;/h4&gt;
+
+&lt;p&gt;每一个对类发送 &lt;code&gt;alloc&lt;/code&gt; 消息，都会产生实例对象。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c++&quot;&gt;@interface HTObject : NSObject {
+    int _value;
+}
+- (void)function;
+@end
+@implementation HTObject
+- (void)function {}
+@end
+
+void test() {
+	// 产生实例对象
+	HTObject *object = [[HTObject alloc] init];
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;假设输入文件为main.mm，输出文件为main.cpp，利用命令&lt;code&gt;xcrun -sdk iphoneos clang -arch arm64 -rewrite-objc main.mm -o main.cpp&lt;/code&gt;，将Objective-C代码转换成C++代码，关键代码转化为：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c++&quot;&gt;typedef struct objc_class *Class;
+struct NSObject_IMPL {
+	Class isa;
+};
+struct HTObject_IMPL {
+	struct NSObject_IMPL NSObject_IVARS;
+	int _value;
+};
+// @implementation HTObject
+static void _I_HTObject_function(HTObject * self, SEL _cmd) {
+
+}
+// @end
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;从转化后C++代码中，我们可以得到三个很关键的信息：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Objective-C 的类底层是用&lt;code&gt;struct&lt;/code&gt;来实现的。&lt;/li&gt;
+  &lt;li&gt;Objective-C的实例对象中，在内存中存储了 &lt;code&gt;isa&lt;/code&gt; 指针和成员变量。&lt;/li&gt;
+  &lt;li&gt;成员方法不占用实例对象的内存。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;好，讲到这里得知了，实例对象仅存储了成员变量的值，那么成员方法和属性信息存在放哪里呢？在讲解这个知识点之前，我们先总览 Objective-C 的对象关系图。&lt;/p&gt;
+
+&lt;h4 id=&quot;2对象关系图&quot;&gt;2、对象关系图&lt;/h4&gt;
+
+&lt;p&gt;网上有张&lt;a href=&quot;http://www.sealiesoftware.com/blog/class%20diagram.pdf&quot;&gt;介绍图&lt;/a&gt;非常系统的表示实例对象、类对象、元类对象三者的关系。&lt;/p&gt;
+
+&lt;p&gt;&lt;img src=&quot;http://ronhu.me/img/class_relationship.png&quot; alt=&quot;&quot; /&gt;&lt;/p&gt;
+
+&lt;p&gt;剖析下这张图需要注意什么：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Objective-C 存在三种对象，实例对象（instance），类对象（class），元类对象（meta）。&lt;/li&gt;
+  &lt;li&gt;三种对象的内部都有&lt;code&gt;isa&lt;/code&gt;指针，实例对象的&lt;code&gt;isa&lt;/code&gt;指针指向类对象，类对象的&lt;code&gt;isa&lt;/code&gt;指针指向元类对象，元类对象的&lt;code&gt;isa&lt;/code&gt;指针指向&lt;code&gt;Root Class&lt;/code&gt;的元类对象，即&lt;code&gt;NSObject&lt;/code&gt;的元类对象。（Objective2.0之后，isa 间接存储指向地址）&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;NSObject&lt;/code&gt; 的&lt;strong&gt;元类对象&lt;/strong&gt;的&lt;code&gt;superclass&lt;/code&gt;指针指向了 &lt;code&gt;NSObject&lt;/code&gt;的&lt;strong&gt;类对象&lt;/strong&gt;。&lt;/li&gt;
+  &lt;li&gt;对象方法的查找，先从&lt;strong&gt;实例对象&lt;/strong&gt;的&lt;code&gt;isa&lt;/code&gt;指针找到&lt;strong&gt;类对象&lt;/strong&gt;，若&lt;strong&gt;类对象&lt;/strong&gt;不存在该方法，则通过superclass找父类。&lt;/li&gt;
+  &lt;li&gt;类方法的查找，先从&lt;strong&gt;类对象&lt;/strong&gt;的&lt;code&gt;isa&lt;/code&gt;指针找到&lt;strong&gt;元类对象&lt;/strong&gt;，若&lt;strong&gt;元类对象&lt;/strong&gt;不存在该方法，则通过superclass找父类。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;好，看到这里，就可以推导出结论：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;实例对象仅存储了成员变量和指向类对象的 &lt;code&gt;isa&lt;/code&gt; 指针。&lt;/li&gt;
+  &lt;li&gt;成员方法的函数地址等存储在类对象和元类对象里。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;下面我们来看看类对象和元类对象的底层结构是怎样的。&lt;/p&gt;
+
+&lt;h4 id=&quot;3类对象&quot;&gt;3、类对象&lt;/h4&gt;
+
+&lt;p&gt;Objective-C 每个类定义，在内存中都存在类对象。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c++&quot;&gt;HTObject *object = [[HTObject alloc] init];
+// 类对象
+Class objectClass1 = [object class];
+Class objectClass2 = object_getClass(object);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;类对象的类型为&lt;code&gt;Class&lt;/code&gt;，通过&lt;code&gt;typedef struct objc_class *Class&lt;/code&gt;可以得知，&lt;code&gt;Class&lt;/code&gt; 是指向 &lt;code&gt;struct objc_class&lt;/code&gt; 的指针。 &lt;code&gt;objc_class&lt;/code&gt;的定义可通过苹果开源的&lt;a href=&quot;https://opensource.apple.com/tarballs/objc4/&quot;&gt;源码&lt;/a&gt;来窥探一下:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c++&quot;&gt;struct objc_object {
+private:
+    // isa指针
+    isa_t isa;
+public:
+	// ... 其他辅助方法
+}
+
+struct objc_class : objc_object {
+	// 父类指针
+    Class superclass;
+    // 方法缓存
+    cache_t cache;             
+	// bits &amp;amp; FAST_DATA_MASK 可得到 class_rw_t *
+    class_data_bits_t bits;    
+    class_rw_t *data() { 
+        return bits.data();
+    }
+	// ...其他辅助方法
+}
+
+// 类信息
+struct class_rw_t {
+    uint32_t flags;
+    uint32_t version;
+    // 类只读信息，包含类名，成员变量列表等不可变信息。
+    const class_ro_t *ro; 
+	
+    // 方法列表
+    method_array_t methods;
+    // 属性列表
+    property_array_t properties;
+    // 协议列表
+    protocol_array_t protocols;
+ 
+    Class firstSubclass;
+    Class nextSiblingClass;
+    char *demangledName;    
+	// ...其他辅助方法
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;通过源码，我们可以得知，&lt;code&gt;objc_class&lt;/code&gt;里包含了几个关键信息：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;isa指针，superclass指针。&lt;/li&gt;
+  &lt;li&gt;方法列表，属性列表，协议列表。&lt;/li&gt;
+  &lt;li&gt;类名，成员变量等不可变信息。&lt;/li&gt;
+  &lt;li&gt;其他辅助信息。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;4元类对象&quot;&gt;4、元类对象&lt;/h4&gt;
+
+&lt;p&gt;Objective-C 每个类定义，除了类对象外，在内存中也存在元类对象。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&quot;language-c++&quot;&gt;HTObject *object = [[HTObject alloc] init];
+// 元类对象
+Class objectMetaClass = object_getClass([object class]);
+class_isMetaClass(objectMetaClass); 
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;元类对象的类型也为&lt;code&gt;Class&lt;/code&gt;，底层结构和类对象一致，存储结构为&lt;code&gt;objc_class&lt;/code&gt;。虽然存储结构一致，但是元类对象和类对象的用途却不同：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;&lt;code&gt;methods&lt;/code&gt;，元类存储的&lt;code&gt;类方法&lt;/code&gt;，类对象存储的是&lt;code&gt;对象方法&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;properties&lt;/code&gt;，元类存储的&lt;code&gt;类属性&lt;/code&gt;，类方法存储的&lt;code&gt;对象属性&lt;/code&gt;。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;所以，元类对象中主要是存储和类方法相关的信息，而类对象存储的是对象方法相关的信息。&lt;/p&gt;
+
+&lt;h3 id=&quot;三总结与回顾&quot;&gt;三、总结与回顾&lt;/h3&gt;
+
+&lt;p&gt;本文总结起来介绍了几个重要知识点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Objective-C 的对象，分为三种：实例对象，类对象，元类对象。&lt;/li&gt;
+  &lt;li&gt;Objective-C 的对象之间的关系通过 &lt;code&gt;isa&lt;/code&gt; 来关联。&lt;/li&gt;
+  &lt;li&gt;类对象和元类对象底层结构一致，类对象主要存储成员方法相关的信息，元类对象主要存储类对象相关信息。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;Objective-C的底层对象模型是基石，在掌握对象模型之后，我们能更好的领悟：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Objective-C 的消息发送机制。&lt;/li&gt;
+  &lt;li&gt;Method Swizzing，方法动态替换。&lt;/li&gt;
+  &lt;li&gt;KVC，KVO，Category 实现原理等。&lt;/li&gt;
+&lt;/ol&gt;
+</description>
+        <pubDate>Tue, 30 Oct 2018 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/</link>
+        <guid isPermaLink="true">http://localhost:4000/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/</guid>
+        
+        <category>iOS</category>
+        
+        
+        <category>read</category>
+        
+      </item>
+    
+      <item>
+        <title>GCD 基本使用</title>
+        <description>&lt;h3 id=&quot;为什么需要gcd&quot;&gt;为什么需要GCD？&lt;/h3&gt;
+
+&lt;p&gt;Grand Central Dispatch (GCD) 是异步执行任务的技术之一。&lt;/p&gt;
+
+&lt;p&gt;GCD 主要目的是减少开发多线程的复杂性，降低多线程编程的代码量，从封装层面上减少多线程编程会遇到的问题。开发者定义任务追加到对应的队列中，使用时不再需要关心底层的线程调度，从而减低开发多线程编程的复杂性。&lt;/p&gt;
+
+&lt;h3 id=&quot;gcd-api-使用&quot;&gt;GCD API 使用&lt;/h3&gt;
+
+&lt;h4 id=&quot;dispatch-queue&quot;&gt;Dispatch Queue&lt;/h4&gt;
+
+&lt;p&gt;开发者要做的只是定义想执行的任务并追加到适当的 Dispatch Queue 中。&lt;/p&gt;
+
+&lt;p&gt;执行任务时，存在两种Dispatch Queue：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Serial Dispatch Queue  串行队列&lt;/li&gt;
+  &lt;li&gt;Concurrent Dispatch Queue 并行队列&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;需要注意的是 Concurrent Dispatch Queue 的队列数，系统会根据当前状态生成对应数量的线程。&lt;/p&gt;
+
+&lt;h4 id=&quot;dispatch_queue_create&quot;&gt;dispatch_queue_create&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code&gt;// 生成 Serial Dispatch Queue
+dispatch_queue_t mySerialDispatchQueue = dispatch_queue_create(&quot;com.example.gcd.mySerialDispatchQueue&quot;, NULL);
+
+// 生成 Concurrent Dispatch Queue
+dispatch_queue_t myConcurrentDispatchQueue = dispatch_queue_create(&quot;com.example.gcd.myConcurrentDispatchQueue&quot;, DISPATCH_QUEUE_CONCURRENT);
+
+// 执行串行任务
+dispatch_async(mySerialDispatchQueue, ^{ // do something });
+// 执行并行任务
+dispatch_async(myConcurrentDispatchQueue, ^{ // do something });
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;此处需要注意几点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;dispatch_queue_create 创建 Serial Dispatch Queue 时，每创建一次，便会生成新的线程。大量的线程会消耗内存资源，引发大量的上下文切换，影响系统响应速度。&lt;/li&gt;
+  &lt;li&gt;dispatch_queue_create 创建 Concurrent Dispatch Queue 时，操作系统会根据当前内核情况进行线程管理，创建的线程数量由操作系统决定。所以，并非并行的任务就会立刻开始执行，并行队列的任务也会根据相应情况进行排队处理。&lt;/li&gt;
+  &lt;li&gt;iOS 6.0以后，不再需要调用 dispatch_release，可通过 OS_OBJECT_USE_OBJC 检查。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;main-dispatch-queue--global-dispatch-queue&quot;&gt;Main Dispatch Queue / Global Dispatch Queue&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code&gt;// 获取主线程队列
+dispatch_queue_t mainDispatchQueue = dispatch_get_main_queue();
+// 获取 Concurrent Serial Queue
+dispatch_queue_t globalDispatchQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;此处需要注意几点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;dispatch_get_global_queue 有四种优先级：DISPATCH_QUEUE_PRIORITY_HIGH，DISPATCH_QUEUE_PRIORITY_DEFAULT，DISPATCH_QUEUE_PRIORITY_LOW，DISPATCH_QUEUE_PRIORITY_BACKGROUND。第二个参数是系统保留位，目前必须填0。&lt;/li&gt;
+  &lt;li&gt;dispatch_get_global_queue 获取的队列没有名字，所以调试起来会比较麻烦，所以需要调试的功能，dispatch_create_queue 是更为合适的方案，dispatch_create_queue 的 Concurrent Dispatch Queue 的优先级为 DEFAULT。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;dispatch_set_target_queue&quot;&gt;dispatch_set_target_queue&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code&gt;// 改变队列的执行层级
+dispatch_set_target_queue(mySerialDispatchQueue, globalDispatchQueue);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h4 id=&quot;dispatch_after&quot;&gt;dispatch_after&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code&gt;dispatch_time_t time = dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC));
+dispatch_after(time, dispatch_get_main_queue(), ^{
+    // do something
+});
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;此处需要几点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;dispatch_after的含义是延迟时间间隔将任务加入到队列中，所以实际执行的延迟时间并不一定是指定的延迟时间，而是根据当时的队列状况决定的。&lt;/li&gt;
+  &lt;li&gt;dispatch_walltime 可制定具体时间点。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;dispatch-group&quot;&gt;Dispatch Group&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code&gt;dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_group_t group = dispatch_group_create();
+dispatch_group_async(group, globalQueue, ^{ NSLog(@&quot;1&quot;); });
+dispatch_group_async(group, globalQueue, ^{ NSLog(@&quot;2&quot;); });
+dispatch_group_async(group, globalQueue, ^{ NSLog(@&quot;3&quot;); });
+
+// 等待任务1，2，3完成后调用
+dispatch_group_notify(group, dispatch_get_main_queue(), ^{
+    NSLog(@&quot;done&quot;);
+});
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;当任务1，2，3执行完毕后，会 notify 结束的 block，用于非阻塞等待的场景。&lt;/p&gt;
+
+&lt;p&gt;若需要阻塞等待的场景，用下列方式：&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;// result 为0，则执行完毕，时间可指定DISPATCH_TIME_FOREVER，无限阻塞等待
+long result = dispatch_group_wait(group, 1ull * NSEC_PER_SEC);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h4 id=&quot;dispatch_barrier_async&quot;&gt;dispatch_barrier_async&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code&gt;dispatch_queue_t queue = dispatch_queue_create(&quot;com.gcd.barrier.concurrentQueue&quot;, DISPATCH_QUEUE_CONCURRENT);
+dispatch_async(queue, blk1);
+dispatch_async(queue, blk2);
+dispatch_async(queue, blk3);
+dispatch_barrier_async(queue, barrierBlk);
+dispatch_async(queue, blk4);
+dispatch_async(queue, blk5);
+dispatch_async(queue, blk6);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;dispatch_barrier_async 是栅栏函数，它就好像栅栏一般，在它前面的操作先执行，在它后面的操作后执行。若不加栅栏函数，并行执行的操作顺序不定。&lt;/p&gt;
+
+&lt;p&gt;使用 dispatch_barrier_async 需要注意：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;必须是同一个 ConCurrent Dispatch Queue，并且对 dispatch_get_global_queue 不生效。&lt;/li&gt;
+  &lt;li&gt;栅栏函数前面和后面的操作，依旧是并行且顺序不定的。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;dispatch_block_cancel&quot;&gt;dispatch_block_cancel&lt;/h4&gt;
+
+&lt;p&gt;通过 dispatch_block_cancel 取消队列中的任务，需要注意仅能取消尚未开始执行的任务。也可用 NSOperationQueue 管理队列，实现取消任务。&lt;/p&gt;
+
+&lt;h4 id=&quot;dispatch_sync&quot;&gt;dispatch_sync&lt;/h4&gt;
+
+&lt;p&gt;dispatch_async是异步执行，dispatch_sync是同步执行。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_sync(globalQueue, ^{
+    // 先执行
+});
+// 阻塞等待 globalQueue 执行完毕后，再执行接下来的操作
+NSLog(@&quot;done&quot;);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;使用时需要注意以下几点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;不要在主线程里使用 dispatch_sync(dispatch_get_main_queue(), blk)，会造成线程等待死锁。&lt;/li&gt;
+  &lt;li&gt;同步等待容易导致多线程问题，使用时做好线程检查。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;dispatch_apply&quot;&gt;dispatch_apply&lt;/h4&gt;
+
+&lt;p&gt;函数作用类似于 dispatch_sync 和 Dispatch Group 的结合。函数作用是指定次数把相同block追加到队列中，并且等待所有添加的任务执行完毕。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;dispatch_queue_t globalQueue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+dispatch_apply(10, globalQueue, ^(size_t index) {
+    NSLog(@&quot;%ld&quot;, index);
+});
+// 阻塞等待 globalQueue 执行完毕后，再执行接下来的操作
+NSLog(@&quot;done&quot;);
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;使用时，多与 dispatch_global_queue 和 dispatch_get_main 配合使用，在子线程执行耗时操作，主线程执行 UI 刷新操作。&lt;/p&gt;
+
+&lt;h4 id=&quot;dispatch_suspend--dispatch_resume&quot;&gt;dispatch_suspend / dispatch_resume&lt;/h4&gt;
+
+&lt;p&gt;dispatch_suspend 与 dispatch_resume 配合使用，多用于“挂起”与“恢复”线程。&lt;/p&gt;
+
+&lt;h4 id=&quot;dispatch-semaphore&quot;&gt;Dispatch Semaphore&lt;/h4&gt;
+
+&lt;p&gt;作用类似于信号量。&lt;/p&gt;
+
+&lt;p&gt;dispatch_semaphore_wait 来判断当前信号量，若信号量大于等于1，则可以继续执行，否则等待，一旦继续执行，则信号量减1。&lt;/p&gt;
+
+&lt;p&gt;dispatch_semaphore_signal 表示释放信号量，调用后信号量加1。&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;dispatch_queue_t queue = dispatch_queue_create(&quot;com.example.gcd.concurrentqueue&quot;, 0);
+dispatch_semaphore_t semaphore = dispatch_semaphore_create(1);
+NSMutableArray *array = [NSMutableArray array];
+for (int i = 0; i != 100; i++) {
+    dispatch_async(queue, ^{
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        [array addObject:@(i)];
+        dispatch_semaphore_signal(semaphore);
+    });
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;可使用于线程等待，阻塞执行等场景。&lt;/p&gt;
+
+&lt;h4 id=&quot;dispatch_once&quot;&gt;dispatch_once&lt;/h4&gt;
+
+&lt;pre&gt;&lt;code&gt;static dispatch_once_t onceToken;
+dispatch_once(&amp;amp;onceToken, ^{
+	// 线程安全，仅执行一次
+});
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;若有单例需求，推荐使用dispatch_once，可保证线程安全。&lt;/p&gt;
+
+&lt;h4 id=&quot;dispatch-io&quot;&gt;Dispatch I/O&lt;/h4&gt;
+
+&lt;p&gt;GCD 提供的对文件多线程并行读取 API。如果要尝试提高文件读取速度，可以尝试 Dispatch I/O。&lt;/p&gt;
+
+&lt;h3 id=&quot;总结&quot;&gt;总结&lt;/h3&gt;
+
+&lt;p&gt;本文介绍 GCD API 的相关使用。防止掉入 GCD 的坑里，我们还需剖析底层实现和相关原理，下一篇文章我们便来看看 GCD 的原理。&lt;/p&gt;
+</description>
+        <pubDate>Sun, 30 Sep 2018 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/read/2018/09/30/GCD-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/</link>
+        <guid isPermaLink="true">http://localhost:4000/read/2018/09/30/GCD-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/</guid>
+        
+        <category>iOS</category>
+        
+        
+        <category>read</category>
+        
+      </item>
+    
+      <item>
+        <title>复盘T3.1晋级答辩</title>
+        <description>&lt;p&gt;本文记录T3.1 答辩准备过程，复盘流程修改不足，分享答辩的感悟与思考。&lt;/p&gt;
+
+&lt;h2 id=&quot;一-写在前面&quot;&gt;一. 写在前面&lt;/h2&gt;
+
+&lt;p&gt;我的基本情况大概是，2011级电子科技大学本科生，14年5月到腾讯实习，实习期半年并留任。15年7月入职腾讯任职 iOS 开发工程师，一直至今刚好三年。很幸运18年上半年考核五星并拿到了绿色通道机会，提前半年进行了 T3.1 答辩，并暗下决心一定要好好准备，不辜负 leader 的厚望。&lt;/p&gt;
+
+&lt;h2 id=&quot;二-答辩前&quot;&gt;二. 答辩前&lt;/h2&gt;
+
+&lt;p&gt;本文按照时间线，讲答辩过程拆分成了答辩前 - 答辩中 - 答辩后，在我看来，对结果的影响重要性依次为 70% - 25% - 5%。首先来看看答辩前的流程。&lt;/p&gt;
+
+&lt;h3 id=&quot;21-答辩内容篇&quot;&gt;2.1 答辩内容篇&lt;/h3&gt;
+
+&lt;h4 id=&quot;211-核心业务&quot;&gt;2.1.1 核心业务&lt;/h4&gt;
+
+&lt;p&gt;核心业务是最好的答辩内容。其中，以&lt;strong&gt;优化类&lt;/strong&gt;的核心工作更适合答辩。优化类工作从遇到问题，到分析问题，再到解决问题，最后列出优化效果，过程中有对比有数据有结论，符合基本认知体系，能够让评委感受到价值的存在。&lt;/p&gt;
+
+&lt;p&gt;在平时工作上，要有意识的接触和负责这一块的工作。&lt;/p&gt;
+
+&lt;h4 id=&quot;212-内容聚焦&quot;&gt;2.1.2 内容聚焦&lt;/h4&gt;
+
+&lt;p&gt;答辩内容在精不在多，挑选一两个核心业务答辩即可，千万不要列太多的低水平工作，它们只会拉低答辩内容的整体水平，并干扰评委的精力。&lt;/p&gt;
+
+&lt;p&gt;答辩内容要体现出 T3 的实力，如果多数毕业生都能做的工作，就不要列出来了。&lt;/p&gt;
+
+&lt;h4 id=&quot;213-充分准备&quot;&gt;2.1.3 充分准备&lt;/h4&gt;
+
+&lt;p&gt;一年前准备内容。一个月前敲定内容。一星期前完成PPT。一天前准备心态。&lt;/p&gt;
+
+&lt;p&gt;千万不要答辩前，才开始思考应该用什么内容答辩。答辩的准备应该是从入职那一刻便开始了。&lt;/p&gt;
+
+&lt;h3 id=&quot;22-ppt-准备篇&quot;&gt;2.2 PPT 准备篇&lt;/h3&gt;
+
+&lt;h4 id=&quot;221-ppt-框架最重要&quot;&gt;2.2.1 PPT 框架最重要&lt;/h4&gt;
+
+&lt;p&gt;PPT 的制作要展示出答辩人的思路，基本原则是从 PPT 就能解读出思路和重点，讲解只是拓展和辅助。&lt;/p&gt;
+
+&lt;p&gt;所以，PPT一定要有几个特点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;
+    &lt;p&gt;思路清晰。标题说明思路，每页 PPT 重点突出。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;模版清新。模板挺重要的，简洁的模板看起来赏心悦目，也能在一定程度上加分。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;图文并茂。能用图说明清楚的，就少用文字。但是最重要的文字，千万不能省掉。&lt;/p&gt;
+  &lt;/li&gt;
+  &lt;li&gt;
+    &lt;p&gt;赋予含义。每页PPT要赋予价值，明白每页PPT的作用是什么，作用可以是承上启下，也可以是展现某方面能力，千万不要太多可有可无的 PPT 页数稀释了整个 PPT 的重要信息。&lt;/p&gt;
+  &lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;222-请求第三只眼帮助&quot;&gt;2.2.2 请求第三只眼帮助&lt;/h4&gt;
+
+&lt;p&gt;做完了 PPT，请求有经验的前辈给予建议，他们能根据经验提供一些非常有用的建议，以及帮助我们发现一些思维盲区没有发现的问题。&lt;/p&gt;
+
+&lt;h4 id=&quot;223-模拟演练&quot;&gt;2.2.3 模拟演练&lt;/h4&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;提前准备好每页PPT承上启下的串讲词，并且把每页要讲的重点以关键词的形式罗列在PPT的备注里。&lt;/li&gt;
+  &lt;li&gt;找个会议室或安静的地方，模拟讲解几次。基本上要把串讲词和关键字背下来，做到即使不看备注也能顺畅的讲完PPT的状态。&lt;/li&gt;
+  &lt;li&gt;给身边朋友或前辈讲几次，请他们帮忙 review 语速，讲解词等信息，并适当采取建议。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;224-准备好评委的提问&quot;&gt;2.2.4 准备好评委的提问&lt;/h4&gt;
+
+&lt;p&gt;放空自我，以第三者的角度重新观察和审视 PPT，查看其中有哪些问题，如果我们是评委，可能会有哪些疑问，并提前针对可能的疑问做好准备。&lt;/p&gt;
+
+&lt;p&gt;包括但不限于：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;为什么要做这个优化。（考察产品思维）&lt;/li&gt;
+  &lt;li&gt;PPT里罗列的数据，数据来源是什么，为什么数据是这样的。（考察细节把控）&lt;/li&gt;
+  &lt;li&gt;对优化的其他细节是否了解，包括但不限于后台的优化，管理端的优化等。（考察全面性）&lt;/li&gt;
+  &lt;li&gt;其中某个具体的优化实现中，遇到了什么挑战，以及我们是怎么解决的。（考察深入思考）&lt;/li&gt;
+  &lt;li&gt;这块的某个数据是怎样的，PPT为什么没体现。（考察运营思维）&lt;/li&gt;
+  &lt;li&gt;这块优化，有没有继续提升的空间，以及未来的计划是怎样的。（考察积极性和主观能动性）&lt;/li&gt;
+  &lt;li&gt;…&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h2 id=&quot;三-答辩中&quot;&gt;三. 答辩中&lt;/h2&gt;
+
+&lt;h4 id=&quot;31-迎接异常情况&quot;&gt;3.1 迎接异常情况&lt;/h4&gt;
+
+&lt;p&gt;答辩时，心态上准备好各种异常情况的发生，包括“PPT如果播放不了了”，“备注看不到了”等，并且要对异常情况有解决措施。&lt;/p&gt;
+
+&lt;h4 id=&quot;32-保持节奏&quot;&gt;3.2 保持节奏&lt;/h4&gt;
+
+&lt;p&gt;答辩过程中难免会被打断追问某个细节，讲解完后，也不要乱了节奏，按照我们既定的节奏继续讲解。&lt;/p&gt;
+
+&lt;h4 id=&quot;33-思考评委的疑问背后含义&quot;&gt;3.3 思考评委的疑问背后含义&lt;/h4&gt;
+
+&lt;p&gt;评委提问问题，要思考评委为什么要这么问。以及千万不要回答“不知道”，评委不会问毫无相干的知识点，即使真的不知道，我们也要分析出我们针对该问题的理解。&lt;/p&gt;
+
+&lt;h2 id=&quot;四-答辩后&quot;&gt;四. 答辩后&lt;/h2&gt;
+
+&lt;h4 id=&quot;41-尽可能弥补不足&quot;&gt;4.1 尽可能弥补不足&lt;/h4&gt;
+
+&lt;p&gt;答辩中没有答出来的问题，可以在答辩后整理清楚，企业微信私聊面试官，重新讲解一次对该问题的理解。评委会很欣赏这样积极的态度的。虽然答辩不够完美，但是我们解决问题的态度是积极的。&lt;/p&gt;
+
+&lt;h4 id=&quot;42-复盘与总结&quot;&gt;4.2 复盘与总结&lt;/h4&gt;
+
+&lt;p&gt;答辩仅是职业生涯的阶段过程，针对答辩中暴露出的不足，在以后的工作中，我们要尽可能的改进和进步。把答辩当作考试来对待，考试后除了拿到分数，我们还要针对其中不懂的问题和做的不好的问题进行错题复盘。一定要从与高手过招中，有所成长。&lt;/p&gt;
+
+&lt;p&gt;针对答辩结果，尽人事听天命吧。&lt;/p&gt;
+
+&lt;h2 id=&quot;五-有哪些地方可以做得更好&quot;&gt;五. 有哪些地方可以做得更好？&lt;/h2&gt;
+
+&lt;p&gt;在这次 T3.1答辩经历中，暴露了我的一些不足，主要如下：&lt;/p&gt;
+
+&lt;h4 id=&quot;51-进一步提升-ppt-水平&quot;&gt;5.1 进一步提升 PPT 水平&lt;/h4&gt;
+
+&lt;p&gt;PPT 是个系统的工程，分为硬实力和软实力。硬实力是指 PPT 的功能使用，这块可以通过短期学习提高。软实力是做 PPT 的思维和对框架的把控，同样的内容不同人来呈现有天壤之别，这些软实力需要经过见识的积累和有意识的练习和提高。&lt;/p&gt;
+
+&lt;p&gt;那么怎么提升软实力呢？多看，多想，多向高人请教，并且找机会刻意练习。&lt;/p&gt;
+
+&lt;h4 id=&quot;52-克服拖延&quot;&gt;5.2 克服拖延&lt;/h4&gt;
+
+&lt;p&gt;得到答辩机会是一个月前，有四周的时间准备答辩，当时并没有集中精力去做 PPT，三心二意使前两个周末并没有玩的很愉快，并且最后两个周末非常匆忙，几乎推掉了所有的事情，全心全意的准备，非常的累也没有休息得很好。&lt;/p&gt;
+
+&lt;p&gt;正确的节奏完全应该是倒过来的，前两个周末准备充分一些，后两个周末可以闲暇一些。这样的节奏安排使时间的利用弹性很大，即使周末遇到其他重要的事要做，也不会因答辩而推脱掉。&lt;/p&gt;
+
+&lt;h4 id=&quot;53-答辩问题深入思考&quot;&gt;5.3 答辩问题深入思考&lt;/h4&gt;
+
+&lt;p&gt;起初以为答辩的重点在内容讲解上，花了太多的时间在熟悉串讲稿，熟悉 PPT。针对问题准备得并不充分。&lt;/p&gt;
+
+&lt;p&gt;答辩过程中，评委提的好几个问题完全没有思考过，暴露出了平时工作中思考总结并不够的问题，答辩前也没有针对性的查漏补缺。&lt;/p&gt;
+
+&lt;h2 id=&quot;六-思考与感悟&quot;&gt;六. 思考与感悟&lt;/h2&gt;
+
+&lt;h4 id=&quot;61-站在评委的角度思考问题&quot;&gt;6.1 站在评委的角度思考问题&lt;/h4&gt;
+
+&lt;p&gt;评委和我的思维有很大不同。由于我的三个答辩评委都是项目经理 PM 角色，所以评委更在意运营数据，未来规划，做事起因，优化效果等。我在准备答辩时更在意实现细节，技术细节，方案合理性。技术人员为什么大多不擅长答辩呢？重要原因是思维角度不同。我们会从自我视角出发准备答辩，最终呈现效果可能不符合评委思维。&lt;/p&gt;
+
+&lt;p&gt;正确的做法应该是站在评委角度，准备评委感兴趣的话题。当然每个评委的兴趣点不同，技术型领导可能更关注实现细节，项目经理会更关注优化的整体把控。&lt;/p&gt;
+
+&lt;p&gt;知彼知己，百战不殆，提前了解到评委的喜好，能够更好的准备好答辩。做很多事情都是这个道理。&lt;/p&gt;
+
+&lt;h4 id=&quot;62-做好充足的准备&quot;&gt;6.2 做好充足的准备&lt;/h4&gt;
+
+&lt;p&gt;这里的准备，并不仅局限于答辩PPT的准备。而是在于整个职业生涯的准备。&lt;/p&gt;
+
+&lt;p&gt;晋级 T3.1 的准备，从入职便开始了。在工作过程中，有意识的准备相应的知识点，积累答辩素材，积极的进行思考和复盘，是非常重要的事情。为什么评委会让我们晋级通过呢？肯定是我们确实具备了 T3.1的实力。先达到 T3.1的实力，再去答辩，能够很大的增加晋级通过的概率。&lt;/p&gt;
+
+&lt;p&gt;以正合，以奇胜，机会往往是给予有准备的人，寄希望答辩前一个月的准备来扭转局势，无异于临时抱佛脚，大概率会失败。&lt;/p&gt;
+
+&lt;h4 id=&quot;63-寻找第三只眼的重要性&quot;&gt;6.3 寻找第三只眼的重要性&lt;/h4&gt;
+
+&lt;p&gt;每个人都有思维的盲区，认知的不同造就了社会的形形色色。我们一定要向身边优秀的前辈学习，靠齐他们的认知水平，不断提升自我思维。听君一席话，胜读十年书，形容虽然夸张了点，但是很多时候，高人的指点对我们的提升非常有益。&lt;/p&gt;
+
+&lt;p&gt;stay hungry，stay foolish，向优秀的人学习，对未来保持敬畏。&lt;/p&gt;
+</description>
+        <pubDate>Thu, 30 Aug 2018 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/read/2018/08/30/%E5%A4%8D%E7%9B%98T3.1%E6%99%8B%E7%BA%A7%E7%AD%94%E8%BE%A9/</link>
+        <guid isPermaLink="true">http://localhost:4000/read/2018/08/30/%E5%A4%8D%E7%9B%98T3.1%E6%99%8B%E7%BA%A7%E7%AD%94%E8%BE%A9/</guid>
+        
+        <category>总结</category>
+        
+        
+        <category>read</category>
+        
+      </item>
+    
+      <item>
+        <title>Windows SDK 开发过程复盘与反思</title>
+        <description>&lt;h3 id=&quot;一-背景&quot;&gt;一. 背景&lt;/h3&gt;
+
+&lt;p&gt;最近接到了一项任务，需要在短时间内封装一个Windows SDK 给外部用户使用。该 SDK 使用 wss 通道，经过一系列身份验证，获取 AuthCode 返回给调用者。分析这项工作对我主要有几个难点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;没使用过 Windows 开发，也对 Visual Studio 完全陌生。&lt;/li&gt;
+  &lt;li&gt;接触过一些 iOS 的 SDK 封装，但对 Windows SDK 的情况几乎不了解。&lt;/li&gt;
+  &lt;li&gt;时间紧张，开发时间短。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;在短时间内高质量完成一项之前没接触过的工作。&lt;/p&gt;
+
+&lt;h3 id=&quot;二-拆分任务&quot;&gt;二. 拆分任务&lt;/h3&gt;
+
+&lt;p&gt;仔细分拆 Windows SDK 的任务，实际上有些地方是自己比较擅长的：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;C++ 比较熟悉，在企业微信的开发过程中做过很长时间的 C++ 开发。&lt;/li&gt;
+  &lt;li&gt;接口封装的基础知识。对设计模式，抽象等有一定认识，了解怎样是清晰好用的 SDK。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;整理出完成这项工作需要的知识点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;Visual Studio 的基本使用，Windows 的各种开发工具和开发环境。&lt;/li&gt;
+  &lt;li&gt;Windows  websockets 库的选择，目标是库够小，针对多架构兼容性好。&lt;/li&gt;
+  &lt;li&gt;打包 Windows SDK 需要的基本知识，Windows lib、dll 的基本理论。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h3 id=&quot;三-过程记录&quot;&gt;三. 过程记录&lt;/h3&gt;
+
+&lt;h4 id=&quot;1-开发环境配置&quot;&gt;1. 开发环境配置&lt;/h4&gt;
+
+&lt;p&gt;下载了较为成熟的 Visual Studio 2013，并且配上了 ConEmu，并安装了 Git 、Python 等常用的命令行工具，在这一步上没有遇到太多问题。但是在使用 Visual Studio 2013 的过程中，采用的思路是自我探索，实际上踩了一些坑。如果一开始选择先花半个小时熟悉下基本操作和基本快捷键，会节约一些时间。&lt;/p&gt;
+
+&lt;h4 id=&quot;2-websockets-库选择&quot;&gt;2. Websockets 库选择&lt;/h4&gt;
+
+&lt;p&gt;在 Github 上搜索了 websocket 关键字，用 C++ 过滤看到以下结果&lt;/p&gt;
+
+&lt;h5 id=&quot;21-easywsclient&quot;&gt;2.1 easywsclient&lt;/h5&gt;
+
+&lt;p&gt;C++实现，最轻量，不支持 SSL。若支持 SSL，需要改代码，短时间内不允许，故放弃。&lt;/p&gt;
+
+&lt;h5 id=&quot;22-uwebsocket&quot;&gt;2.2 uWebSocket&lt;/h5&gt;
+
+&lt;p&gt;C++实现，Github 上 star 最多，依赖 boost，SSL，libuv。库本身代码很小，最初选择的便是 uWebSocket，但是【尝试编译】过程中发现依赖库过多，遂放弃。此处可以看到是经过了编译的撞墙后，才发现依赖库过多放弃的。实际上如果刚开始就把依赖库少列为选择 SDK 的标准之一，这里会省很多时间。&lt;/p&gt;
+
+&lt;h5 id=&quot;23-websocketpp&quot;&gt;2.3 websocketpp&lt;/h5&gt;
+
+&lt;p&gt;C++实现，库历史比较长，文档比较多，相关参考 demo 非常详细，最后选择了 websocketpp&lt;/p&gt;
+
+&lt;h4 id=&quot;3-编译-websocketpp&quot;&gt;3. 编译 websocketpp&lt;/h4&gt;
+
+&lt;p&gt;在没接触 Windows 开发前，万万没想到 Windows 的编译配置规则这么多。&lt;/p&gt;
+
+&lt;h5 id=&quot;31-阅读-readme-和-wiki&quot;&gt;3.1 阅读 README 和 WiKi&lt;/h5&gt;
+
+&lt;p&gt;README 和 WiKi 往往包含了编译工程的方法，和使用库的一些注意事项，需要首先关注。&lt;/p&gt;
+
+&lt;h5 id=&quot;32-cmake&quot;&gt;3.2 cmake&lt;/h5&gt;
+
+&lt;p&gt;下载的源码为了跨平台使用，一般会包含&lt;code&gt;CMakeLists.txt，&lt;/code&gt;使用 CMake （cmake-gui）工具可编译出工程文件。&lt;/p&gt;
+
+&lt;h5 id=&quot;33-下载依赖库&quot;&gt;3.3 下载依赖库&lt;/h5&gt;
+
+&lt;p&gt;websocketpp依赖于 boost 和 openSSL，到官网下载对应的库即可。&lt;/p&gt;
+
+&lt;p&gt;boost直接到&lt;a href=&quot;[https://sourceforge.NET/projects/boost/files/boost-binaries/1.61.0/](https://sourceforge.net/projects/boost/files/boost-binaries/1.61.0/)&quot;&gt;网址&lt;/a&gt;下载编译好的，省去自己编译了（选择自己对应的ms版本，如VS2015 64位的选择boost_1_61_0-msvc-14.0-64.exe） 。&lt;/p&gt;
+
+&lt;p&gt;openSSL也到&lt;a href=&quot;http://slproweb.com/products/Win32OpenSSL.html&quot;&gt;网址&lt;/a&gt;下载编译好的版本。&lt;/p&gt;
+
+&lt;h5 id=&quot;34-工程配置&quot;&gt;3.4 工程配置&lt;/h5&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;配置&lt;strong&gt;包含目录&lt;/strong&gt;，找到对应的头文件，使代码&lt;code&gt;编译&lt;/code&gt;通过。配置位置在&lt;code&gt;VC++目录-&amp;gt;包含目录&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;配置&lt;strong&gt;库目录&lt;/strong&gt;，加载 &lt;code&gt;lib&lt;/code&gt;静态库，使代码&lt;code&gt;链接&lt;/code&gt;通过。配置位置在&lt;code&gt;C/C++-&amp;gt;常规-&amp;gt;附加包含目录&lt;/code&gt;，&lt;code&gt;VC++目录-&amp;gt;库目录&lt;/code&gt;，&lt;code&gt;链接器-&amp;gt;输入-&amp;gt;附加依赖项&lt;/code&gt;，&lt;code&gt;链接器-&amp;gt;常规-&amp;gt;附加库目录&lt;/code&gt;，这几个地方都要检查。&lt;/li&gt;
+  &lt;li&gt;配置&lt;code&gt;预编译&lt;/code&gt;，定义预编译宏。配置位置在&lt;code&gt;C/C++-&amp;gt;预处理器-&amp;gt;预处理器定义&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;加载dll`动态库。加载dll有手动和自动两种方式，此处编译选择自动加载，即把 dll 放在和 exe 同一个目录下。&lt;/li&gt;
+  &lt;li&gt;后期生成事件，运行自定义脚本。配置位置在&lt;code&gt;生成事件-&amp;gt;后期生成事件&lt;/code&gt;。由于封装的 SDK 还需要嵌入内部的另外一个 SDK，此处需将三方 SDK 的 dll 拷贝到工程目录中。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;h4 id=&quot;4-打包记录&quot;&gt;4. 打包记录&lt;/h4&gt;
+
+&lt;p&gt;针对 Release 和 Debug 分别打包出.h、lib、dll。需要注意的是&lt;code&gt;.h&lt;/code&gt;最好用 C 接口，若有回调函数，需加上&lt;code&gt;__stdcall&lt;/code&gt;表明函数的调用方式。&lt;/p&gt;
+
+&lt;h3 id=&quot;四-反思和复盘&quot;&gt;四. 反思和复盘&lt;/h3&gt;
+
+&lt;p&gt;在本次工作中，自己做得不好的几点：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;接到开发任务时，埋头研究浪费了一些时间，最后研究出的方法也不够漂亮和规范。最后还是在同事的指点下，采用了正确的路径，还算不错的完成了工作。&lt;/li&gt;
+  &lt;li&gt;对基本功能不清楚，研究三方库时，没有第一时间阅读 README ，导致浪费了一些时间在编译没必要的库上。如果起初就高屋建瓴的清楚此处 SDK 需要&lt;code&gt;依赖少&lt;/code&gt;，&lt;code&gt;支持SSL&lt;/code&gt;，&lt;code&gt;接口清晰&lt;/code&gt;，那么很快就能排除 easywsclient 和 uWebSocket，而不是编译完了才发现有这些问题。&lt;/li&gt;
+  &lt;li&gt;处理问题过程中，有一些困难点处理完了没有记录下来。当时由于时间紧张，处理完了困难点，顾着高兴忘记了记录，回头再思考其中的细节，想要回忆起全部非常困难。&lt;/li&gt;
+&lt;/ol&gt;
+
+&lt;p&gt;这次开发任务，有以下几点体会：&lt;/p&gt;
+
+&lt;ol&gt;
+  &lt;li&gt;向前辈请教思路。接到开发任务时，埋头研究浪费了一些时间，最后研究出的方法也不够漂亮和规范。正确的做法应该是请教相关经验的开发，寻找正确优秀的做事路径。做事道路对了，方向正了，结果大概率也就漂亮了。此处的前辈可以是优秀的相关开发，也可以是&lt;code&gt;stackoverflow&lt;/code&gt;上的优质回答。注意，此处标明了优秀两字，如果向不够优雅的做法学习，也就限制了做事的上限。&lt;/li&gt;
+  &lt;li&gt;积极的解决问题。陌生领悟肯定存在很多不了解不清楚的知识点，切忌遇到点麻烦就半途而返，转头从零开始，做很多无用功。遇到问题正确思路应该是采用积极的态度解决问题，多搜，多问，多研究。作为初学者遇到的问题，肯定很多人已经遇到过了。&lt;/li&gt;
+  &lt;li&gt;做事原则要清楚。选择三方库或者技术选型时，有些原则一定要清楚，尝试一头扎进细节的东西，要先俯视全局，先看看库或方案是否满足基本原则，不满足的要第一时间 pass 掉，避免做无用功。&lt;/li&gt;
+  &lt;li&gt;知识沉淀很重要。做陌生领域的事情，一定会遇到很多不明白不清楚的知识点，记录下来备忘，并且形成方法论，避免狗熊掰棒子的囧境。&lt;/li&gt;
+&lt;/ol&gt;
+
+</description>
+        <pubDate>Tue, 31 Jul 2018 00:00:00 +0800</pubDate>
+        <link>http://localhost:4000/read/2018/07/31/Windows-SDK-%E5%BC%80%E5%8F%91%E8%BF%87%E7%A8%8B%E5%A4%8D%E7%9B%98%E4%B8%8E%E5%8F%8D%E6%80%9D/</link>
+        <guid isPermaLink="true">http://localhost:4000/read/2018/07/31/Windows-SDK-%E5%BC%80%E5%8F%91%E8%BF%87%E7%A8%8B%E5%A4%8D%E7%9B%98%E4%B8%8E%E5%8F%8D%E6%80%9D/</guid>
+        
+        <category>C++</category>
+        
+        
+        <category>read</category>
+        
+      </item>
+    
+      <item>
         <title>从 SVN 到 Git</title>
-        <description>&lt;p&gt;本文从 Git 与 SVN 的对比入手，介绍如何通过&lt;code class=&quot;highlighter-rouge&quot;&gt;Git-SVN&lt;/code&gt;开始使用 Git，并总结平时工作高频率使用到的 Git 常用命令。&lt;/p&gt;
+        <description>&lt;p&gt;本文从 Git 与 SVN 的对比入手，介绍如何通过&lt;code&gt;Git-SVN&lt;/code&gt;开始使用 Git，并总结平时工作高频率使用到的 Git 常用命令。&lt;/p&gt;
 
 &lt;h2 id=&quot;一git-vs-svn&quot;&gt;一、Git vs SVN&lt;/h2&gt;
 &lt;blockquote&gt;
@@ -22,7 +1406,7 @@
 &lt;p&gt;这是 Git 和 SVN 最大的区别。若能掌握这个概念，两者区别基本搞懂大半。因为 Git 是分布式的，所以 Git 支持离线工作，在本地可以进行很多操作，包括接下来将要重磅推出的分支功能。而 SVN 必须联网才能正常工作。&lt;/p&gt;
 
 &lt;h3 id=&quot;git复杂概念多svn简单易上手&quot;&gt;Git复杂概念多，SVN简单易上手&lt;/h3&gt;
-&lt;p&gt;所有同时掌握 Git 和 SVN 的开发者都必须承认，Git 的命令实在太多了，日常工作需要掌握&lt;code class=&quot;highlighter-rouge&quot;&gt;add&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;commit&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;status&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;fetch&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;push&lt;/code&gt;,&lt;code class=&quot;highlighter-rouge&quot;&gt;rebase&lt;/code&gt;等，若要熟练掌握，还必须掌握&lt;code class=&quot;highlighter-rouge&quot;&gt;rebase&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;merge&lt;/code&gt;的区别，&lt;code class=&quot;highlighter-rouge&quot;&gt;fetch&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;pull&lt;/code&gt;的区别等，除此之外，还有&lt;code class=&quot;highlighter-rouge&quot;&gt;cherry-pick&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;submodule&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;stash&lt;/code&gt;等功能，仅是这些名词听着都很绕。&lt;/p&gt;
+&lt;p&gt;所有同时掌握 Git 和 SVN 的开发者都必须承认，Git 的命令实在太多了，日常工作需要掌握&lt;code&gt;add&lt;/code&gt;,&lt;code&gt;commit&lt;/code&gt;,&lt;code&gt;status&lt;/code&gt;,&lt;code&gt;fetch&lt;/code&gt;,&lt;code&gt;push&lt;/code&gt;,&lt;code&gt;rebase&lt;/code&gt;等，若要熟练掌握，还必须掌握&lt;code&gt;rebase&lt;/code&gt;和&lt;code&gt;merge&lt;/code&gt;的区别，&lt;code&gt;fetch&lt;/code&gt;和&lt;code&gt;pull&lt;/code&gt;的区别等，除此之外，还有&lt;code&gt;cherry-pick&lt;/code&gt;，&lt;code&gt;submodule&lt;/code&gt;，&lt;code&gt;stash&lt;/code&gt;等功能，仅是这些名词听着都很绕。&lt;/p&gt;
 
 &lt;p&gt;在易用性这方面，SVN 会好得多，简单易上手，对新手很友好。但是从另外一方面看，Git 命令多意味着功能多，若我们能掌握大部分 Git 的功能，体会到其中的奥妙，会发现再也回不去 SVN 的时代了。&lt;/p&gt;
 
@@ -47,9 +1431,9 @@
 &lt;p&gt;通常提交代码分为几步：&lt;/p&gt;
 
 &lt;ol&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;git add&lt;/code&gt;从工作区提交到暂存区&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;git commit&lt;/code&gt;从暂存区提交到本地仓库&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;git push&lt;/code&gt;或&lt;code class=&quot;highlighter-rouge&quot;&gt;git svn dcommit&lt;/code&gt;从本地仓库提交到远程仓库&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;git add&lt;/code&gt;从工作区提交到暂存区&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;git commit&lt;/code&gt;从暂存区提交到本地仓库&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;git push&lt;/code&gt;或&lt;code&gt;git svn dcommit&lt;/code&gt;从本地仓库提交到远程仓库&lt;/li&gt;
 &lt;/ol&gt;
 
 &lt;p&gt;一般来说，记住以下命令，便可进行日常工作了（图片来源于网络）：
@@ -60,12 +1444,12 @@
   &lt;p&gt;本节命令针对使用 Git-SVN 的开发者，请务必掌握。&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;p&gt;若服务器使用的 SVN，但是本地想要体验 Git 的本地分支，离线操作等功能，可以使用 &lt;code class=&quot;highlighter-rouge&quot;&gt;Git-SVN&lt;/code&gt;功能。&lt;/p&gt;
+&lt;p&gt;若服务器使用的 SVN，但是本地想要体验 Git 的本地分支，离线操作等功能，可以使用 &lt;code&gt;Git-SVN&lt;/code&gt;功能。&lt;/p&gt;
 
 &lt;p&gt;常用操作如下（图片来源于网络）：
 &lt;img src=&quot;http://ronhu.me/img/git-svn-workflow.png&quot; alt=&quot;git-svn workflow&quot; /&gt;&lt;/p&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 下载一个 SVN 项目和它的整个代码历史，并初始化为 Git 代码库
+&lt;pre&gt;&lt;code&gt;# 下载一个 SVN 项目和它的整个代码历史，并初始化为 Git 代码库
 $ git svn clone -s [repository]
 
 # 查看当前版本库情况
@@ -86,21 +1470,21 @@ $ svn copy [remote_branch] [new_remote_branch] -m [message]
 # 创建远程分支对应的本地分支
 $ git checkout -b [local_branch] [remote_branch]
 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h2 id=&quot;四初始化&quot;&gt;四、初始化&lt;/h2&gt;
 &lt;blockquote&gt;
-  &lt;p&gt;从本节开始，除特殊说明，以下命令均适用于 Git 与 &lt;code class=&quot;highlighter-rouge&quot;&gt;Git-SVN&lt;/code&gt;。&lt;/p&gt;
+  &lt;p&gt;从本节开始，除特殊说明，以下命令均适用于 Git 与 &lt;code&gt;Git-SVN&lt;/code&gt;。&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 在当前目录新建一个Git代码库
+&lt;pre&gt;&lt;code&gt;# 在当前目录新建一个Git代码库
 $ git init
 
 # 下载一个项目和它的整个代码历史 [Git only]
 $ git clone [url]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 &lt;h2 id=&quot;五配置&quot;&gt;五、配置&lt;/h2&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 列举所有配置
+&lt;pre&gt;&lt;code&gt;# 列举所有配置
 $ git config -l
 
 # 为命令配置别名
@@ -113,13 +1497,13 @@ $ git config --global alias.br branch
 $ git config [--global] user.name &quot;[name]&quot;
 $ git config [--global] user.email &quot;[email address]&quot;
 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
-&lt;p&gt;Git 用户的配置文件位于 &lt;code class=&quot;highlighter-rouge&quot;&gt;~/.gitconfig &lt;/code&gt;&lt;/p&gt;
+&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Git 用户的配置文件位于 &lt;code&gt;~/.gitconfig &lt;/code&gt;&lt;/p&gt;
 
-&lt;p&gt;Git 单个仓库的配置文件位于 &lt;code class=&quot;highlighter-rouge&quot;&gt;~/$PROJECT_PATH/.git/config&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Git 单个仓库的配置文件位于 &lt;code&gt;~/$PROJECT_PATH/.git/config&lt;/code&gt;&lt;/p&gt;
 
 &lt;h2 id=&quot;六增删文件&quot;&gt;六、增删文件&lt;/h2&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 添加当前目录的所有文件到暂存区
+&lt;pre&gt;&lt;code&gt;# 添加当前目录的所有文件到暂存区
 $ git add .
 
 # 添加指定文件到暂存区
@@ -137,11 +1521,11 @@ $ git rm --cached [file]
 # 改名文件，并且将这个改名放入暂存区
 $ git mv [file-original] [file-renamed]
 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;把文件名 file1 添加到 .gitignore 文件里，Git 会停止跟踪 file1 的状态。&lt;/p&gt;
 
 &lt;h2 id=&quot;七分支&quot;&gt;七、分支&lt;/h2&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 列出所有本地分支
+&lt;pre&gt;&lt;code&gt;# 列出所有本地分支
 $ git branch
 
 # 列出所有本地分支和远程分支
@@ -165,10 +1549,10 @@ $ git cherry-pick [commit]
 # 删除分支，-D 参数强制删除分支
 $ git branch -d [branch-name]
 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h2 id=&quot;八提交&quot;&gt;八、提交&lt;/h2&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 提交暂存区到仓库区
+&lt;pre&gt;&lt;code&gt;# 提交暂存区到仓库区
 $ git commit -m [message]
 
 # 提交工作区与暂存区的变化直接到仓库区
@@ -182,10 +1566,10 @@ $ git commit --amend -m [message]
 
 # 上传本地指定分支到远程仓库
 $ git push [remote] [branch]
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h2 id=&quot;九拉取&quot;&gt;九、拉取&lt;/h2&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 下载远程仓库的所有变动 [Git only]
+&lt;pre&gt;&lt;code&gt;# 下载远程仓库的所有变动 [Git only]
 $ git fetch [remote]
 
 # 显示所有远程仓库 [Git only]
@@ -203,10 +1587,10 @@ $ git pull [remote] [branch]
 # 取回远程仓库的变化，并与本地分支变基合并，[Git only], 若使用 Git-SVN，请查看第三节
 $ git pull --rebase [remote] [branch]
 
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h2 id=&quot;十撤销&quot;&gt;十、撤销&lt;/h2&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 恢复暂存区的指定文件到工作区
+&lt;pre&gt;&lt;code&gt;# 恢复暂存区的指定文件到工作区
 $ git checkout [file]
 
 # 恢复暂存区当前目录的所有文件到工作区
@@ -235,10 +1619,10 @@ $ git stash
 
 # 将储藏区的内容恢复到当前工作区
 $ git stash pop
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h2 id=&quot;十一查询&quot;&gt;十一、查询&lt;/h2&gt;
-&lt;div class=&quot;highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;# 查看工作区文件修改状态
+&lt;pre&gt;&lt;code&gt;# 查看工作区文件修改状态
 $ git status               
 
 # 查看工作区文件修改具体内容   
@@ -258,11 +1642,11 @@ $ git log -p [file]
 
 # 查看某次提交具体修改内容
 $ git show [commit]         
-&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+&lt;/code&gt;&lt;/pre&gt;
 
 &lt;h2 id=&quot;十二其他&quot;&gt;十二、其他&lt;/h2&gt;
 &lt;h3 id=&quot;写在后面&quot;&gt;写在后面&lt;/h3&gt;
-&lt;p&gt;从 SVN 到 Git，除本文列举的基础概念和常用命令，包括但不限于&lt;code class=&quot;highlighter-rouge&quot;&gt;如何从 SVN 服务器切换到 Git 服务器&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;分支模型管理&lt;/code&gt;等也非常重要。本文篇幅有限，针对没有介绍到但很重要的知识点会列举到参考资料里，希望作为本文的延伸阅读。&lt;/p&gt;
+&lt;p&gt;从 SVN 到 Git，除本文列举的基础概念和常用命令，包括但不限于&lt;code&gt;如何从 SVN 服务器切换到 Git 服务器&lt;/code&gt;，&lt;code&gt;分支模型管理&lt;/code&gt;等也非常重要。本文篇幅有限，针对没有介绍到但很重要的知识点会列举到参考资料里，希望作为本文的延伸阅读。&lt;/p&gt;
 
 &lt;h3 id=&quot;参考资料&quot;&gt;参考资料&lt;/h3&gt;
 &lt;ol&gt;
@@ -289,9 +1673,9 @@ $ git show [commit]
         <title>Chromium智能指针使用指南</title>
         <description>&lt;h4 id=&quot;什么是智能指针&quot;&gt;什么是智能指针？&lt;/h4&gt;
 
-&lt;p&gt;智能指针是一种特殊类型的“局部对象”，表现如同裸指针，但是具备&lt;code class=&quot;highlighter-rouge&quot;&gt;离开作用域(out of scope)时主动释放所指向对象&lt;/code&gt;的能力。因为C++没有垃圾回收机制，因此智能指针的特性显得非常重要。&lt;/p&gt;
+&lt;p&gt;智能指针是一种特殊类型的“局部对象”，表现如同裸指针，但是具备&lt;code&gt;离开作用域(out of scope)时主动释放所指向对象&lt;/code&gt;的能力。因为C++没有垃圾回收机制，因此智能指针的特性显得非常重要。&lt;/p&gt;
 
-&lt;p&gt;下面是最常用智能指针类型&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;的例子：&lt;/p&gt;
+&lt;p&gt;下面是最常用智能指针类型&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;的例子：&lt;/p&gt;
 &lt;pre&gt;&lt;code class=&quot;language-C++&quot;&gt;// 我们可以在构造std::unique_prt&amp;lt;&amp;gt;的时候传入指针
 std::unique_ptr value(base::JSONReader::Read(data));
 std::unique_ptr foo_ptr(new Foo(...));
@@ -317,23 +1701,23 @@ if (!value-&amp;gt;GetAsDictionary(&amp;amp;dict)) return false;
 
 &lt;h4 id=&quot;存在哪些类型的智能指针&quot;&gt;存在哪些类型的智能指针？&lt;/h4&gt;
 
-&lt;p&gt;在Chromium里最常用的两种智能指针类型是&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;scoped_refptr&amp;lt;&amp;gt;&lt;/code&gt;。前者适用于单一所有权的对象，后者适用于引用计数的对象（然而，通常应该避免使用引用计数的对象）。如果你比较熟悉C++11，会发现&lt;code class=&quot;highlighter-rouge&quot;&gt;scoepd_refptr&amp;lt;&amp;gt;&lt;/code&gt;和&lt;code class=&quot;highlighter-rouge&quot;&gt;std::shared_ptr&amp;lt;&amp;gt;&lt;/code&gt;用法很相似。&lt;/p&gt;
+&lt;p&gt;在Chromium里最常用的两种智能指针类型是&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;和&lt;code&gt;scoped_refptr&amp;lt;&amp;gt;&lt;/code&gt;。前者适用于单一所有权的对象，后者适用于引用计数的对象（然而，通常应该避免使用引用计数的对象）。如果你比较熟悉C++11，会发现&lt;code&gt;scoepd_refptr&amp;lt;&amp;gt;&lt;/code&gt;和&lt;code&gt;std::shared_ptr&amp;lt;&amp;gt;&lt;/code&gt;用法很相似。&lt;/p&gt;
 
 &lt;p&gt;&lt;a href=&quot;https://chromium.googlesource.com/chromium/src/+/master/base/memory/&quot;&gt;base/memory/&lt;/a&gt; 还定义了其余几种类型的对象：&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt; 用于在C++11之前存放智能指针对象，已被废弃。现在Chromium已经支持C++11了，我们不应该再使用&lt;code class=&quot;highlighter-rouge&quot;&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt;了，而应该在STL容器里使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;ScopedVector&amp;lt;&amp;gt;&lt;/code&gt;也被废弃了。它是一种vector，并且持有容器内对象的所有权。请使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::vector&amp;lt;std::unique_ptr&amp;lt;&amp;gt;&amp;gt;&lt;/code&gt;代替。&lt;/li&gt;
-  &lt;li&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;实际上不是智能指针。它的表现像指针类型，但是并不能用来自动释放对象，通常用作追踪其它地方拥有的对象是否依然存活，当追踪对象释放时，&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;会自动的置为&lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt;。（但是依然需要在解引用前判断是否为&lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt;，因为解引用&lt;code class=&quot;highlighter-rouge&quot;&gt;null WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等于于解引用&lt;code class=&quot;highlighter-rouge&quot;&gt;null&lt;/code&gt;，而不是no-op。）&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;与C++11的&lt;code class=&quot;highlighter-rouge&quot;&gt;std::weak_ptr&amp;lt;&amp;gt;&lt;/code&gt;作用比较相似，但是使用了不同的API并且少了许多使用限制。&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt; 用于在C++11之前存放智能指针对象，已被废弃。现在Chromium已经支持C++11了，我们不应该再使用&lt;code&gt;linked_ptr&amp;lt;&amp;gt;&lt;/code&gt;了，而应该在STL容器里使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;ScopedVector&amp;lt;&amp;gt;&lt;/code&gt;也被废弃了。它是一种vector，并且持有容器内对象的所有权。请使用&lt;code&gt;std::vector&amp;lt;std::unique_ptr&amp;lt;&amp;gt;&amp;gt;&lt;/code&gt;代替。&lt;/li&gt;
+  &lt;li&gt;&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;实际上不是智能指针。它的表现像指针类型，但是并不能用来自动释放对象，通常用作追踪其它地方拥有的对象是否依然存活，当追踪对象释放时，&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;会自动的置为&lt;code&gt;null&lt;/code&gt;。（但是依然需要在解引用前判断是否为&lt;code&gt;null&lt;/code&gt;，因为解引用&lt;code&gt;null WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等于于解引用&lt;code&gt;null&lt;/code&gt;，而不是no-op。）&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;与C++11的&lt;code&gt;std::weak_ptr&amp;lt;&amp;gt;&lt;/code&gt;作用比较相似，但是使用了不同的API并且少了许多使用限制。&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h4 id=&quot;如何选择使用哪种智能指针&quot;&gt;如何选择使用哪种智能指针？&lt;/h4&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;&lt;strong&gt;单一所有权的对象&lt;/strong&gt;。使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&lt;/code&gt;。需要注意的是，&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&lt;/code&gt;持有的需要必须是非引用计数的，并且分配在堆上的对象。&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;无所有权的对象&lt;/strong&gt;。使用裸指针或者&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。注意&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;只能在创建它的线程解引用（通常使用&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtrFactory&amp;lt;&amp;gt;&lt;/code&gt;）。如果你需要在对象释放前后立刻执行某些操作，那么可能使用callback或notification更适合，而不是&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;引用计数的对象&lt;/strong&gt;。使用&lt;code class=&quot;highlighter-rouge&quot;&gt;scoped_refptr&amp;lt;&amp;gt;&lt;/code&gt;，但是最好是重新考虑使用引用计数对象是否合理。引用计数对象很难明确拥有权和析构顺序，特别是在多线程环境中。总是有方法来重新设计引对象层级来避免引用计数的。限制每个类都只能在单个线程工作，并且使用&lt;code class=&quot;highlighter-rouge&quot;&gt;PostTask()&lt;/code&gt;确保调用在正确的线程，这样有助于在多线程中避免引用计数。&lt;code class=&quot;highlighter-rouge&quot;&gt;base::Bind()&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等工具具备在对象释放时自动取消方法调用的能力。Chromium中依然有许多代码在使用引用计数对象，如果你看见Chromium中有代码这样做但并不代表这是合理的解决方案。&lt;/li&gt;
-  &lt;li&gt;&lt;strong&gt;平台特定类型&lt;/strong&gt;。使用平台特定的对象，譬如&lt;code class=&quot;highlighter-rouge&quot;&gt;base::win::ScopedHandle&lt;/code&gt;，&lt;code class=&quot;highlighter-rouge&quot;&gt;base::win::ScopedComPtr&lt;/code&gt;，或者&lt;code class=&quot;highlighter-rouge&quot;&gt;base::mac::ScopedCFTypeRef&lt;/code&gt;。需要注意的是这些类型使用方式可能和&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;不同。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;单一所有权的对象&lt;/strong&gt;。使用&lt;code&gt;std::unique_ptr&lt;/code&gt;。需要注意的是，&lt;code&gt;std::unique_ptr&lt;/code&gt;持有的需要必须是非引用计数的，并且分配在堆上的对象。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;无所有权的对象&lt;/strong&gt;。使用裸指针或者&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。注意&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;只能在创建它的线程解引用（通常使用&lt;code&gt;WeakPtrFactory&amp;lt;&amp;gt;&lt;/code&gt;）。如果你需要在对象释放前后立刻执行某些操作，那么可能使用callback或notification更适合，而不是&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;引用计数的对象&lt;/strong&gt;。使用&lt;code&gt;scoped_refptr&amp;lt;&amp;gt;&lt;/code&gt;，但是最好是重新考虑使用引用计数对象是否合理。引用计数对象很难明确拥有权和析构顺序，特别是在多线程环境中。总是有方法来重新设计引对象层级来避免引用计数的。限制每个类都只能在单个线程工作，并且使用&lt;code&gt;PostTask()&lt;/code&gt;确保调用在正确的线程，这样有助于在多线程中避免引用计数。&lt;code&gt;base::Bind()&lt;/code&gt;，&lt;code&gt;WeakPtr&amp;lt;&amp;gt;&lt;/code&gt;等工具具备在对象释放时自动取消方法调用的能力。Chromium中依然有许多代码在使用引用计数对象，如果你看见Chromium中有代码这样做但并不代表这是合理的解决方案。&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;平台特定类型&lt;/strong&gt;。使用平台特定的对象，譬如&lt;code&gt;base::win::ScopedHandle&lt;/code&gt;，&lt;code&gt;base::win::ScopedComPtr&lt;/code&gt;，或者&lt;code&gt;base::mac::ScopedCFTypeRef&lt;/code&gt;。需要注意的是这些类型使用方式可能和&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;不同。&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h4 id=&quot;不同类型指针间调用规定是怎样的&quot;&gt;不同类型指针间调用规定是怎样的？&lt;/h4&gt;
@@ -341,7 +1725,7 @@ if (!value-&amp;gt;GetAsDictionary(&amp;amp;dict)) return false;
 &lt;p&gt;&lt;a href=&quot;https://www.chromium.org/developers/coding-style?pli=1#TOC-Object-ownership-and-calling-conventions&quot;&gt;calling conventions section of the Chromium style guide&lt;/a&gt;有规定。下面列出一些常用的规定。&lt;/p&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;如果方法参数里使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;	，说明该方法需占用传入参数的所有权，调用方需要使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::move()&lt;/code&gt;来表明转移对象的所有权。需要注意的是，临时对象不需要调用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::move()&lt;/code&gt;转移所有权。&lt;/li&gt;
+  &lt;li&gt;如果方法参数里使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;	，说明该方法需占用传入参数的所有权，调用方需要使用&lt;code&gt;std::move()&lt;/code&gt;来表明转移对象的所有权。需要注意的是，临时对象不需要调用&lt;code&gt;std::move()&lt;/code&gt;转移所有权。&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;pre&gt;&lt;code class=&quot;language-C++&quot;&gt;// Foo() 拥有 |bar| 的所有权.
@@ -354,7 +1738,7 @@ Foo(std::unique_ptr&amp;lt;Bar&amp;gt;(new Bar()));  // 临时对象不需要调
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;如果方法的返回值使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;，说明调用方需要持有返回对象的所有权。这种情况下，当且仅当返回对象类型和临时对象的类型不同时，需要使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::move()&lt;/code&gt;。&lt;/li&gt;
+  &lt;li&gt;如果方法的返回值使用&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;，说明调用方需要持有返回对象的所有权。这种情况下，当且仅当返回对象类型和临时对象的类型不同时，需要使用&lt;code&gt;std::move()&lt;/code&gt;。&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;pre&gt;&lt;code class=&quot;language-C++&quot;&gt;class Base { ... };
@@ -379,20 +1763,20 @@ std::unique_ptr&amp;lt;Base&amp;gt; Foo(std::unique_ptr&amp;lt;Base&amp;gt; base
 &lt;/code&gt;&lt;/pre&gt;
 
 &lt;ul&gt;
-  &lt;li&gt;如果方法传入或者返回裸指针，表示无需所有权转移。Chromium在&lt;code class=&quot;highlighter-rouge&quot;&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;存在之前写的一些代码，或者不熟悉所有权转移的程序员写的代码，可能会在传入或者返回裸指针的时候也使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::move()&lt;/code&gt;转移了所有权。但是这样做是不安全的，编译器并不能执行正确的表现。去掉这样的代码吧，方法传入或者返回裸指针时，绝对不要转移所有权。&lt;/li&gt;
+  &lt;li&gt;如果方法传入或者返回裸指针，表示无需所有权转移。Chromium在&lt;code&gt;std::unique_ptr&amp;lt;&amp;gt;&lt;/code&gt;存在之前写的一些代码，或者不熟悉所有权转移的程序员写的代码，可能会在传入或者返回裸指针的时候也使用&lt;code&gt;std::move()&lt;/code&gt;转移了所有权。但是这样做是不安全的，编译器并不能执行正确的表现。去掉这样的代码吧，方法传入或者返回裸指针时，绝对不要转移所有权。&lt;/li&gt;
 &lt;/ul&gt;
 
 &lt;h4 id=&quot;可以通过引用传递参数或者返回值吗&quot;&gt;可以通过引用传递参数或者返回值吗？&lt;/h4&gt;
 
 &lt;p&gt;不要这样做。&lt;/p&gt;
 
-&lt;p&gt;原理上来说，传入&lt;code class=&quot;highlighter-rouge&quot;&gt;const std::unique_ptr&amp;lt;T&amp;gt; &amp;amp;&lt;/code&gt;参数并且不转移所有权比传入&lt;code class=&quot;highlighter-rouge&quot;&gt;T*&lt;/code&gt;有优势，这样做可以防止调用方传入错误的参数(譬如把 int 转成了 T*)，而且调用方必须确保方法调用周期内传入对象不会被释放。但是，这样调用方就必须把传入对象生成在堆上，即使调用方原本可以使对象生成在栈上。这里传入裸指针相比传入&lt;code class=&quot;highlighter-rouge&quot;&gt;const std::unique_ptr&amp;lt;T&amp;gt; &amp;amp;&lt;/code&gt;的好处是，可以将对象所有权的问题和对象生成的问题解耦。为了简洁和统一，我们避免开发人员去权衡这些利弊，总是使用裸指针就好了。&lt;/p&gt;
+&lt;p&gt;原理上来说，传入&lt;code&gt;const std::unique_ptr&amp;lt;T&amp;gt; &amp;amp;&lt;/code&gt;参数并且不转移所有权比传入&lt;code&gt;T*&lt;/code&gt;有优势，这样做可以防止调用方传入错误的参数(譬如把 int 转成了 T*)，而且调用方必须确保方法调用周期内传入对象不会被释放。但是，这样调用方就必须把传入对象生成在堆上，即使调用方原本可以使对象生成在栈上。这里传入裸指针相比传入&lt;code&gt;const std::unique_ptr&amp;lt;T&amp;gt; &amp;amp;&lt;/code&gt;的好处是，可以将对象所有权的问题和对象生成的问题解耦。为了简洁和统一，我们避免开发人员去权衡这些利弊，总是使用裸指针就好了。&lt;/p&gt;
 
-&lt;p&gt;有个例外，在lambda表达式中，若将智能指针放在STL容器里作为参数传递，这里为了编译通过，必须使用&lt;code class=&quot;highlighter-rouge&quot;&gt;const std::unique_ptr&amp;lt;T&amp;gt; &amp;amp;&lt;/code&gt;。&lt;/p&gt;
+&lt;p&gt;有个例外，在lambda表达式中，若将智能指针放在STL容器里作为参数传递，这里为了编译通过，必须使用&lt;code&gt;const std::unique_ptr&amp;lt;T&amp;gt; &amp;amp;&lt;/code&gt;。&lt;/p&gt;
 
 &lt;h4 id=&quot;我想使用stl容器用来持有指针对象此时可以用智能指针吗&quot;&gt;我想使用STL容器用来持有指针对象。此时可以用智能指针吗？&lt;/h4&gt;
 
-&lt;p&gt;可以。在C++11里，你可以将智能指针放入STL容器内。而且，不要再使用&lt;code class=&quot;highlighter-rouge&quot;&gt;ScopedVector&amp;lt;T&amp;gt;&lt;/code&gt;了，使用&lt;code class=&quot;highlighter-rouge&quot;&gt;std::vector&amp;lt;std::unique_ptr&amp;lt;T&amp;gt;&amp;gt;&lt;/code&gt;来替代。同样的，再也不要再使用&lt;code class=&quot;highlighter-rouge&quot;&gt;linked_ptr&amp;lt;T&amp;gt;&lt;/code&gt;了，直接把智能智能放在STL容器里使用即可。&lt;/p&gt;
+&lt;p&gt;可以。在C++11里，你可以将智能指针放入STL容器内。而且，不要再使用&lt;code&gt;ScopedVector&amp;lt;T&amp;gt;&lt;/code&gt;了，使用&lt;code&gt;std::vector&amp;lt;std::unique_ptr&amp;lt;T&amp;gt;&amp;gt;&lt;/code&gt;来替代。同样的，再也不要再使用&lt;code&gt;linked_ptr&amp;lt;T&amp;gt;&lt;/code&gt;了，直接把智能智能放在STL容器里使用即可。&lt;/p&gt;
 
 &lt;h4 id=&quot;引用资料&quot;&gt;引用资料&lt;/h4&gt;
 

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keyword"  content="ronhu, @ronhu, huteng, 胡腾, Blog, Github, 博客, 互联网, 前端, iOS, 产品, 胡腾的个人网站,  mobile, C++, Git">
+    <meta name="description" content="知行合一">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>Windows SDK 开发过程复盘与反思 - ronhu</title>
+
+    <link rel="canonical" href="http://localhost:4000/read/2018/07/31/Windows-SDK-%E5%BC%80%E5%8F%91%E8%BF%87%E7%A8%8B%E5%A4%8D%E7%9B%98%E4%B8%8E%E5%8F%8D%E6%80%9D/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="//cdn.bootcss.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/ronhu.min.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+<link rel="alternate" type="application/rss+xml"
+  href="feed.xml" title="ronhu">
+    <!-- Custom Fonts -->
+    <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+	.ds-powered-by {
+		display:none !important ;
+	}
+	.ds-post-toolbar .ds-sync{
+		display:none !important ;
+	}
+    </style>
+</head>
+
+
+<body ontouchstart="">
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">ronhu</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">首页</a>
+                </li>
+
+<!--                 <li>
+                    <a href="/apps/">应用</a>
+                </li>
+
+                <li>
+                    <a href="/open/">开源</a>
+                </li>
+ -->
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+		<!--
+                
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+                
+                <li>
+                    <a href="/open/">Open</a>
+                </li>
+                
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+                
+		-->
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/home-bg.jpg')" >
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/#C++" title="C++">C++</a>
+                        
+                    </div>
+                    <h1>Windows SDK 开发过程复盘与反思</h1>
+                    
+                    
+                    <h2 class="subheading"></h2>
+                    
+                    <span class="meta">Posted by ronhu on July 31, 2018</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+  <div class="container" style="overflow-y:hidden;">
+    <div class="row">
+      <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1 post-container">
+
+				<h3 id="一-背景">一. 背景</h3>
+
+<p>最近接到了一项任务，需要在短时间内封装一个Windows SDK 给外部用户使用。该 SDK 使用 wss 通道，经过一系列身份验证，获取 AuthCode 返回给调用者。分析这项工作对我主要有几个难点：</p>
+
+<ol>
+  <li>没使用过 Windows 开发，也对 Visual Studio 完全陌生。</li>
+  <li>接触过一些 iOS 的 SDK 封装，但对 Windows SDK 的情况几乎不了解。</li>
+  <li>时间紧张，开发时间短。</li>
+</ol>
+
+<p>在短时间内高质量完成一项之前没接触过的工作。</p>
+
+<h3 id="二-拆分任务">二. 拆分任务</h3>
+
+<p>仔细分拆 Windows SDK 的任务，实际上有些地方是自己比较擅长的：</p>
+
+<ol>
+  <li>C++ 比较熟悉，在企业微信的开发过程中做过很长时间的 C++ 开发。</li>
+  <li>接口封装的基础知识。对设计模式，抽象等有一定认识，了解怎样是清晰好用的 SDK。</li>
+</ol>
+
+<p>整理出完成这项工作需要的知识点：</p>
+
+<ol>
+  <li>Visual Studio 的基本使用，Windows 的各种开发工具和开发环境。</li>
+  <li>Windows  websockets 库的选择，目标是库够小，针对多架构兼容性好。</li>
+  <li>打包 Windows SDK 需要的基本知识，Windows lib、dll 的基本理论。</li>
+</ol>
+
+<h3 id="三-过程记录">三. 过程记录</h3>
+
+<h4 id="1-开发环境配置">1. 开发环境配置</h4>
+
+<p>下载了较为成熟的 Visual Studio 2013，并且配上了 ConEmu，并安装了 Git 、Python 等常用的命令行工具，在这一步上没有遇到太多问题。但是在使用 Visual Studio 2013 的过程中，采用的思路是自我探索，实际上踩了一些坑。如果一开始选择先花半个小时熟悉下基本操作和基本快捷键，会节约一些时间。</p>
+
+<h4 id="2-websockets-库选择">2. Websockets 库选择</h4>
+
+<p>在 Github 上搜索了 websocket 关键字，用 C++ 过滤看到以下结果</p>
+
+<h5 id="21-easywsclient">2.1 easywsclient</h5>
+
+<p>C++实现，最轻量，不支持 SSL。若支持 SSL，需要改代码，短时间内不允许，故放弃。</p>
+
+<h5 id="22-uwebsocket">2.2 uWebSocket</h5>
+
+<p>C++实现，Github 上 star 最多，依赖 boost，SSL，libuv。库本身代码很小，最初选择的便是 uWebSocket，但是【尝试编译】过程中发现依赖库过多，遂放弃。此处可以看到是经过了编译的撞墙后，才发现依赖库过多放弃的。实际上如果刚开始就把依赖库少列为选择 SDK 的标准之一，这里会省很多时间。</p>
+
+<h5 id="23-websocketpp">2.3 websocketpp</h5>
+
+<p>C++实现，库历史比较长，文档比较多，相关参考 demo 非常详细，最后选择了 websocketpp</p>
+
+<h4 id="3-编译-websocketpp">3. 编译 websocketpp</h4>
+
+<p>在没接触 Windows 开发前，万万没想到 Windows 的编译配置规则这么多。</p>
+
+<h5 id="31-阅读-readme-和-wiki">3.1 阅读 README 和 WiKi</h5>
+
+<p>README 和 WiKi 往往包含了编译工程的方法，和使用库的一些注意事项，需要首先关注。</p>
+
+<h5 id="32-cmake">3.2 cmake</h5>
+
+<p>下载的源码为了跨平台使用，一般会包含<code>CMakeLists.txt，</code>使用 CMake （cmake-gui）工具可编译出工程文件。</p>
+
+<h5 id="33-下载依赖库">3.3 下载依赖库</h5>
+
+<p>websocketpp依赖于 boost 和 openSSL，到官网下载对应的库即可。</p>
+
+<p>boost直接到<a href="[https://sourceforge.NET/projects/boost/files/boost-binaries/1.61.0/](https://sourceforge.net/projects/boost/files/boost-binaries/1.61.0/)">网址</a>下载编译好的，省去自己编译了（选择自己对应的ms版本，如VS2015 64位的选择boost_1_61_0-msvc-14.0-64.exe） 。</p>
+
+<p>openSSL也到<a href="http://slproweb.com/products/Win32OpenSSL.html">网址</a>下载编译好的版本。</p>
+
+<h5 id="34-工程配置">3.4 工程配置</h5>
+
+<ol>
+  <li>配置<strong>包含目录</strong>，找到对应的头文件，使代码<code>编译</code>通过。配置位置在<code>VC++目录-&gt;包含目录</code></li>
+  <li>配置<strong>库目录</strong>，加载 <code>lib</code>静态库，使代码<code>链接</code>通过。配置位置在<code>C/C++-&gt;常规-&gt;附加包含目录</code>，<code>VC++目录-&gt;库目录</code>，<code>链接器-&gt;输入-&gt;附加依赖项</code>，<code>链接器-&gt;常规-&gt;附加库目录</code>，这几个地方都要检查。</li>
+  <li>配置<code>预编译</code>，定义预编译宏。配置位置在<code>C/C++-&gt;预处理器-&gt;预处理器定义</code>。</li>
+  <li>加载dll`动态库。加载dll有手动和自动两种方式，此处编译选择自动加载，即把 dll 放在和 exe 同一个目录下。</li>
+  <li>后期生成事件，运行自定义脚本。配置位置在<code>生成事件-&gt;后期生成事件</code>。由于封装的 SDK 还需要嵌入内部的另外一个 SDK，此处需将三方 SDK 的 dll 拷贝到工程目录中。</li>
+</ol>
+
+<h4 id="4-打包记录">4. 打包记录</h4>
+
+<p>针对 Release 和 Debug 分别打包出.h、lib、dll。需要注意的是<code>.h</code>最好用 C 接口，若有回调函数，需加上<code>__stdcall</code>表明函数的调用方式。</p>
+
+<h3 id="四-反思和复盘">四. 反思和复盘</h3>
+
+<p>在本次工作中，自己做得不好的几点：</p>
+
+<ol>
+  <li>接到开发任务时，埋头研究浪费了一些时间，最后研究出的方法也不够漂亮和规范。最后还是在同事的指点下，采用了正确的路径，还算不错的完成了工作。</li>
+  <li>对基本功能不清楚，研究三方库时，没有第一时间阅读 README ，导致浪费了一些时间在编译没必要的库上。如果起初就高屋建瓴的清楚此处 SDK 需要<code>依赖少</code>，<code>支持SSL</code>，<code>接口清晰</code>，那么很快就能排除 easywsclient 和 uWebSocket，而不是编译完了才发现有这些问题。</li>
+  <li>处理问题过程中，有一些困难点处理完了没有记录下来。当时由于时间紧张，处理完了困难点，顾着高兴忘记了记录，回头再思考其中的细节，想要回忆起全部非常困难。</li>
+</ol>
+
+<p>这次开发任务，有以下几点体会：</p>
+
+<ol>
+  <li>向前辈请教思路。接到开发任务时，埋头研究浪费了一些时间，最后研究出的方法也不够漂亮和规范。正确的做法应该是请教相关经验的开发，寻找正确优秀的做事路径。做事道路对了，方向正了，结果大概率也就漂亮了。此处的前辈可以是优秀的相关开发，也可以是<code>stackoverflow</code>上的优质回答。注意，此处标明了优秀两字，如果向不够优雅的做法学习，也就限制了做事的上限。</li>
+  <li>积极的解决问题。陌生领悟肯定存在很多不了解不清楚的知识点，切忌遇到点麻烦就半途而返，转头从零开始，做很多无用功。遇到问题正确思路应该是采用积极的态度解决问题，多搜，多问，多研究。作为初学者遇到的问题，肯定很多人已经遇到过了。</li>
+  <li>做事原则要清楚。选择三方库或者技术选型时，有些原则一定要清楚，尝试一头扎进细节的东西，要先俯视全局，先看看库或方案是否满足基本原则，不满足的要第一时间 pass 掉，避免做无用功。</li>
+  <li>知识沉淀很重要。做陌生领域的事情，一定会遇到很多不明白不清楚的知识点，记录下来备忘，并且形成方法论，避免狗熊掰棒子的囧境。</li>
+</ol>
+
+
+
+        <hr>
+      </div>
+      
+      <!-- 畅言评论框 start-->
+      <div id="SOHUCS" ></div>
+      <script type="text/javascript">
+      (function(){
+      var appid = ;
+      var conf = ;
+      var width = window.innerWidth || document.documentElement.clientWidth;
+      if (width < 960) {
+      window.document.write('<script id="changyan_mobile_js" charset="utf-8" type="text/javascript" src="https://changyan.sohu.com/upload/mobile/wap-js/changyan_mobile.js?client_id=' + appid + '&conf=' + conf + '"><\/script>'); } else { var loadJs=function(d,a){var c=document.getElementsByTagName("head")[0]||document.head||document.documentElement;var b=document.createElement("script");b.setAttribute("type","text/javascript");b.setAttribute("charset","UTF-8");b.setAttribute("src",d);if(typeof a==="function"){if(window.attachEvent){b.onreadystatechange=function(){var e=b.readyState;if(e==="loaded"||e==="complete"){b.onreadystatechange=null;a()}}}else{b.onload=a}}c.appendChild(b)};loadJs("https://changyan.sohu.com/upload/changyan.js",function(){window.changyan.api.config({appid:appid,conf:conf})}); } })(); </script>
+       <!-- 畅言评论框 end -->
+    </div>
+  </div>
+</article>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+
+                    
+
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; ronhu 2018</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="//cdn.bootcss.com/jquery/2.2.2/jquery.min.js"></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="//cdn.bootcss.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/ronhu.min.js "></script>
+
+<!-- TODO: only load in tag.html -->
+<script src="/js/jquery.tagcloud.js" type="text/javascript" charset="utf-8"></script>
+<script language="javascript">
+    $.fn.tagcloud.defaults = {
+        //size: {start: 1, end: 1, unit: 'em'},
+        color: {start: '#bbbbee', end: '#0085a1'},
+    };
+    $(function () {
+        $('#tag_cloud a').tagcloud();
+    });
+</script>
+
+<!-- async load function -->
+<script>
+    function async(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+<!-- Highlight.js -->
+<script>
+    async("//cdn.bootcss.com/highlight.js/9.4.0/highlight.min.js",function(){
+        hljs.initHighlightingOnLoad();
+    })
+</script>
+<link href="//cdn.bootcss.com/highlight.js/9.4.0/styles/github.min.css" rel="stylesheet">
+
+<div class="cb-search-tool" style="position: fixed; top: 0px ; bottom: 0px; left: 0px; right:  0px;
+      opacity: 0.95; background-color: #111111; z-index: 9999; display: none;">
+    <input type="text" class="form-control cb-search-content" id="cb-search-content" style="position: fixed; top: 60px" placeholder="文章标题 日期 标签" >
+
+    <div style="position: fixed; top: 16px; right: 16px;">
+        <img src="/search/img/cb-close.png"  id="cb-close-btn"/>
+    </div>
+</div>
+
+<div style="position: fixed; right: 16px; bottom: 20px;">
+    <img src="/search/img/cb-search.png"  id="cb-search-btn"  title="双击ctrl试一下"/>
+</div>
+
+<link rel="stylesheet" href="/search/css/cb-search.css">
+
+<script src="/search/js/bootstrap3-typeahead.min.js"></script>
+<script src="/search/js/cb-search.js"></script>
+
+<script>
+$(document).ready(function(){
+  //代码高亮自定义
+  $("code").each(function(){
+    var content =  $(this).html().replace(/\n/g,"\n</li><li>");
+    if(content.indexOf('<li>') == -1){
+      //适配`abc`，放行
+    }else{
+        $(this).html("<ul><li>" + content.substring(0, content.length - 4) +"</ul>"); //适配```
+    }
+  });
+})
+</script>
+
+<div style="display:none;">
+  <script src="//s19.cnzz.com/z_stat.php?id=1000478693&web_id=1000478693" language="JavaScript"></script>
+</div>
+
+
+</body>
+
+</html>
