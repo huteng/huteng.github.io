@@ -234,7 +234,7 @@ id _object_get_associative_reference(id object, void *key) {
 
 用图示表示关系为：
 
-![association-object](../img/association-object.png)
+![association-object](http://ronhu.me/img/association-object.png)
 
 ### 注意细节点
 
