@@ -20,7 +20,7 @@ Property 在 Class 中声明，编译器会为类默认做两件事：
 
 若在 Category 中使用 Property，编译器仅会做一件事：
 
-1. `声明 Getter 方法和 Setter 方法`。
+1. 声明 Getter 方法和 Setter 方法。
 
 注意这里并没有生成实例变量，也没有实现对象的方法。这一点我们写代码很容易验证，在此就不赘述了。
 
