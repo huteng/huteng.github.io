@@ -1,0 +1,250 @@
+---
+layout: post
+category: "read"
+title:  "关联对象的使用与原理"
+tags: [iOS]
+---
+
+# 关联对象的使用与原理
+
+关联对象是做 iOS 开发经常使用的技术之一，合理使用关联对象能发挥代码的更大威力。在实现关联对象的过程中，我们也来挖掘关联对象在 iOS 框架里的实现原理。
+
+## 为什么需要关联对象
+
+### Property 与 Category
+
+Property 在 Class 中声明，编译器会为类默认做两件事：
+
+1. 生成实例变量。
+2. **声明并生成**对应的 Getter 方法和 Setter 方法。
+
+若在 Category 中使用 Property，编译器仅会做一件事：
+
+1. `声明 Getter 方法和 Setter 方法`。
+
+注意这里并没有生成实例变量，也没有实现对象的方法。这一点我们写代码很容易验证，在此就不赘述了。
+
+### 为什么 Property 在 Category 中能力被削弱？
+
+但是为什么 iOS 会这么设计呢？简单来讲，有两条：
+
+1. 实例对象生成时，就需要确定内存大小。
+2. Category 是运行时加载进内存的，并且可以运行时动态生成。
+
+当 Class 通过 alloc 实例化对象时，操作系统会在堆上为 iOS 分配对应的存储空间。而分配内存的大小，需要根据 Class 中的实例变量来决定，该信息则是存储在对应的类对象上的。例如在 64 位机器上， int 通常分配 4 个字节，指针分配 8 个字节。若 Class 包含一个 int 和一个指针，则它的实例对象占用 12 个字节。分配的顺序也是根据代码中的位置来决定的。
+
+如果 Category 可以生成实例变量，则会导致在不同阶段生成的实例对象占用的内存空间不一致，这基本上颠覆了程序的认知。那么为什么可以在 Category 中使用方法和类方法呢，这得益于 [iOS 的运行时机制](http://ronhu.me/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/)：
+
+1. Class 在底层是以结构体的形式存在的。在 runtime 机制，当程序初始化，iOS 框架会根据 Class 的结构体定义生成对应的`类对象`和`元类对象`。
+2. Category 在底层也是以结构体的形式存在的，在程序初始化后，会依一定的规则将 Category 中的方法与类方法加载到类对象和元类对象中。
+
+### 在 Category 中使用成员变量的场景
+
+在开发过程中，确实有在 Category 中使用成员变量的场景，如果没有关联对象，我们可能会这么做：`使用全局 NSDictionary，记录 self 和对应变量的关系。`。思路基本上没有问题，但是在使用过程中，我们要需要考虑内存管理，生成与释放，多线程等场景，如果要完整的实现这套功能，开发量是很大而且容易实现出问题的。幸运的时，iOS 已经为我们实现了这一切，这便是`关联对象`。
+
+## 关联对象基本使用
+
+### 关联对象的基本使用
+
+iOS 上关联对象使用非常简单，常用的就下面三个接口：
+
+```
+// 添加关联对象
+void objc_setAssociatedObject(id object, void *key, id value, objc_AssociationPolicy policy);
+// 获得关联对象
+id objc_getAssociatedObject(id object, const void *key);
+// 移除所有的关联对象
+void objc_removeAssociatedObject(id object);
+```
+
+### 使用注意点
+
+其中，objc_AssociationPolicy 定义了内存管理的方法：
+
+```
+typedef OBJC_ENUM(uintptr_t, objc_AssociationPolicy) {
+    OBJC_ASSOCIATION_ASSIGN = 0,           /**< Specifies a weak reference to the associated object. */
+    OBJC_ASSOCIATION_RETAIN_NONATOMIC = 1, /**< Specifies a strong reference to the associated object. 
+    OBJC_ASSOCIATION_COPY_NONATOMIC = 3,   /**< Specifies that the associated object is copied. 
+    OBJC_ASSOCIATION_RETAIN = 01401,       /**< Specifies a strong reference to the associated object.
+    OBJC_ASSOCIATION_COPY = 01403          /**< Specifies that the associated object is copied.
+};
+```
+
+在 `objc_setAssociatedObject`和`objc_getAssociatedObject`方法中，key是声明为 `void *`，通常我们有几种使用方法：
+
+```
+// 方案1, 直接声明 void * 使用
+static const void *HTNameKey = &HTNameKey;
+id objc_getAssociatedObject(self, HTNameKey);
+// 方案2，使用全局变量的内存地址
+static const char MyKey;
+id objc_getAssociatedObject(self, &MyKey);
+// 方案3，在方法中使用 @selector 或 _cmd 作key
+id objc_getAssociatedObject(self, @selector(name));
+id objc_getAssociatedObject(self, _cmd);
+```
+
+### 使用实例
+
+使用例子，若存在 HTFoo + Key 的 Category，希望在 Category 中存放 key，则可以按照如下实现，可以**模拟**出动态为类添加成员变量的能力了，注意该实现并不会改变实例变量的内存大小。
+
+```
+// 通过关联对象完善 Category 中 Property 的能力
+@interface HTFoo (Key)
+@property (nonatomic, copy) NSString *key;
+@end
+@implementation HTFoo (Key)
+- (NSString *)key {
+    return objc_getAssociatedObject(self, @selector(key));
+}
+- (void)setKey:(NSString *)key {
+    objc_setAssociatedObject(self, @selector(key), key, OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+@end
+```
+
+## 关联对象实现原理
+
+说清楚了关联对象的由来和使用方法后，我们通过 runtime 源码来剖析关联对象的实现原理，知晓原理后，在使用关联对象时，我们会更加得心应手。
+
+### 源码摘录
+
+在 [runtime 源码](https://opensource.apple.com/tarballs/objc4/)中搜索 `objc_getAssociatedObject` 可以在 `objc-runtime.mm`中找到实现：
+
+```
+id objc_getAssociatedObject(id object, const void *key) {
+    return _object_get_associative_reference(object, (void *)key);
+}
+
+void objc_setAssociatedObject(id object, const void *key, id value, objc_AssociationPolicy policy) {
+    _object_set_associative_reference(object, (void *)key, value, policy);
+}
+```
+
+其中， `_object_set_associative_reference` 的实现源码摘录如下：
+
+```
+void _object_set_associative_reference(id object, void *key, id value, uintptr_t policy) {
+    // retain the new value (if any) outside the lock.
+    ObjcAssociation old_association(0, nil);
+    // 通过 policy 判断 value 是否需要 retain 或 copy
+    id new_value = value ? acquireValue(value, policy) : nil;
+    {  // 括号的作用是：当 AssociationsManager 离开作用域时，释放自旋锁。
+        AssociationsManager manager;
+        AssociationsHashMap &associations(manager.associations());
+        disguised_ptr_t disguised_object = DISGUISE(object);
+        if (new_value) {
+            // break any existing association.
+            AssociationsHashMap::iterator i = associations.find(disguised_object);
+            if (i != associations.end()) {
+                // secondary table exists
+                ObjectAssociationMap *refs = i->second;
+                ObjectAssociationMap::iterator j = refs->find(key);
+                if (j != refs->end()) {
+                    old_association = j->second;
+                    j->second = ObjcAssociation(policy, new_value);
+                } else {
+                    (*refs)[key] = ObjcAssociation(policy, new_value);
+                }
+            } else {
+                // create the new association (first time).
+                ObjectAssociationMap *refs = new ObjectAssociationMap;
+                associations[disguised_object] = refs;
+                (*refs)[key] = ObjcAssociation(policy, new_value);
+                // 标记对象存在关联对象
+                object->setHasAssociatedObjects();
+            }
+        } else {
+            // setting the association to nil breaks the association.
+            AssociationsHashMap::iterator i = associations.find(disguised_object);
+            if (i !=  associations.end()) {
+                ObjectAssociationMap *refs = i->second;
+                ObjectAssociationMap::iterator j = refs->find(key);
+                if (j != refs->end()) {
+                    old_association = j->second;
+                    refs->erase(j);
+                }
+            }
+        }
+    }
+    // release the old value (outside of the lock).
+    if (old_association.hasValue()) ReleaseValue()(old_association);
+}
+```
+
+执行步骤为：
+
+1. 通过 AssociationsManager 获取 AssociationsHashMap。
+2. 若传入的 value 不为空，则更新对应的 ObjectAssociationMap 与 ObjcAssociation。
+3. 若传入的 value 为 nil，则删除对应的 ObjcAssociation。
+
+`_object_get_associative_reference`如下：
+
+```
+id _object_get_associative_reference(id object, void *key) {
+    id value = nil;
+    uintptr_t policy = OBJC_ASSOCIATION_ASSIGN;
+    { // 括号的作用是：当 AssociationsManager 离开作用域时，释放自旋锁。
+        AssociationsManager manager;
+        AssociationsHashMap &associations(manager.associations());
+        disguised_ptr_t disguised_object = DISGUISE(object);
+        AssociationsHashMap::iterator i = associations.find(disguised_object);
+        if (i != associations.end()) {
+            ObjectAssociationMap *refs = i->second;
+            ObjectAssociationMap::iterator j = refs->find(key);
+            if (j != refs->end()) {
+                ObjcAssociation &entry = j->second;
+                value = entry.value();
+                policy = entry.policy();
+                if (policy & OBJC_ASSOCIATION_GETTER_RETAIN) {
+                    objc_retain(value);
+                }
+            }
+        }
+    }
+    if (value && (policy & OBJC_ASSOCIATION_GETTER_AUTORELEASE)) {
+        objc_autorelease(value);
+    }
+    return value;
+}
+```
+
+执行步骤为：
+
+1. 通过 AssociationsManager 获取 AssociationsHashMap。
+2. 通过 `DISGUISE(object)` 获取 ObjectAssociationMap。
+3. 通过 key 获取 ObjcAssociation。
+4. 以上任意一步获取不到，均返回 nil。
+
+### 核心类分析
+
+核心源码不长，也比较好理解，在其中有四个值得注意的对象，源码可以通过官网下载查阅细节：
+
+* AssociationsManager 
+  * 线程安全的单例对象，存储了 AssociationsHashMap 的 static 实例对象。
+* AssociationsHashMap
+  * 继承至 `std::unordered_map`，key 是`disguised_ptr_t`，value 是 `ObjectAssociationMap`。
+  * 其中 key 通过 `DISGUISE(object)`方法生成，与实例对象地址一一对应。value 是 ObjectAssociationMap， 用于存储实例对象和关联对象的关系。
+* ObjectAssociationMap
+  * 继承至 `std::map`，key 是 `void *`，value 是 `ObjcAssociation`。
+  * 注意，此处的 key 即是 `objc_setAssociatedObject` 传入的 `void * `参数。
+* ObjcAssociation
+  * 存储传入参数的 policy 、value。
+
+用图示表示关系为：
+
+![association-object](../img/association-object.png)
+
+### 注意细节点
+
+通过解剖源码，我们得到了如下注意点：
+
+1. 关联对象的存在并不会影响实例对象的大小。
+2. 将 value 设置为 nil，会移除掉对应的关联对象 ObjectAssociation。
+
+3. AssociationsManager 通过自旋锁保证 AssociationsHashMap 的读取是线程安全的。
+
+## 总结
+
+本文从为什么需要关联对象出发，介绍了关联对象的使用场景和使用方法，以及一些使用时的注意点。最后通过剖析源码实现，从源码层面知晓了关联对象的使用策略与方法。

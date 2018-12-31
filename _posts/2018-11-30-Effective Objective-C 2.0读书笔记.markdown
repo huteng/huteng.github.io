@@ -3,7 +3,6 @@ layout: post
 category: "read"
 title:  "Effective Objective-C 2.0读书笔记"
 tags: [iOS]
-
 ---
 
 本月重温了《Effective Objective-C 2.0》，受益颇多。记录盲区与重点知识，以做备忘。
