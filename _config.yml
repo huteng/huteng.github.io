@@ -37,53 +37,53 @@ future:      false
 unpublished: false
 
 # Plugins
-# whitelist: []
-# plugins:      ["jekyll-paginate"]
+whitelist: []
+plugins:      ["jekyll-paginate"]
 #gems:      []
 
-# # Conversion
+# Conversion
 markdown:    kramdown
 highlighter: pygments
-# lsi:         false
-# excerpt_separator: "\n\n"
-# incremental: false
+lsi:         false
+excerpt_separator: "\n\n"
+incremental: false
 
-# # Serving
-# detach:  false
-# port:    4000
-# host:    127.0.0.1
-# baseurl: "" # does not include hostname
+# Serving
+detach:  false
+port:    4000
+host:    127.0.0.1
+baseurl: "" # does not include hostname
 
-# # Outputting
-# permalink: pretty
-# paginate: 16
-# paginate_path: /page/:num
-# timezone: Asia/Shanghai
+# Outputting
+permalink: pretty
+paginate: 16
+paginate_path: /page/:num
+timezone: Asia/Shanghai
 
-# quiet:    false
-# defaults: []
+quiet:    false
+defaults: []
 
-# # Markdown Processors
-# rdiscount:
-#   extensions: []
+# Markdown Processors
+rdiscount:
+  extensions: []
 
-# redcarpet:
-#   extensions: []
+redcarpet:
+  extensions: []
 
-# # Markdown Processors
-# kramdown:
-#   auto_ids:       true
-#   footnote_nr:    1
-#   entity_output:  as_char
-#   toc_levels:     1..6
-#   smart_quotes:   lsquo,rsquo,ldquo,rdquo
-#   syntax_highlighter: true
-#   input: GFM
+# Markdown Processors
+kramdown:
+  auto_ids:       true
+  footnote_nr:    1
+  entity_output:  as_char
+  toc_levels:     1..6
+  smart_quotes:   lsquo,rsquo,ldquo,rdquo
+  syntax_highlighter: true
+  input: GFM
 
-#   syntax_highlighter_opts:
-#     wrap:              div
-#     line_numbers:      inline
-#     line_number_start: 1
-#     tab_width:         4
-#     bold_every:        10
-#     css:               style
+  syntax_highlighter_opts:
+    wrap:              div
+    line_numbers:      inline
+    line_number_start: 1
+    tab_width:         4
+    bold_every:        10
+    css:               style

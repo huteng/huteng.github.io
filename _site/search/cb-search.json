@@ -4,7 +4,7 @@
 	 
 	{
 		"title" : "关联对象的使用与原理 - iOS",
-		"url" : "/read/2018/12/31/%E5%85%B3%E8%81%94%E5%AF%B9%E8%B1%A1%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E5%8E%9F%E7%90%86.html"
+		"url" : "/read/2018/12/31/%E5%85%B3%E8%81%94%E5%AF%B9%E8%B1%A1%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E5%8E%9F%E7%90%86/"
 	}
 	
 	,
@@ -12,7 +12,7 @@
     
 	{
 		"title" : "Effective Objective-C 2.0读书笔记 - iOS",
-		"url" : "/read/2018/11/30/Effective-Objective-C-2.0%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0.html"
+		"url" : "/read/2018/11/30/Effective-Objective-C-2.0%E8%AF%BB%E4%B9%A6%E7%AC%94%E8%AE%B0/"
 	}
 	
 	,
@@ -20,7 +20,7 @@
     
 	{
 		"title" : "Objective-C的类和对象模型 - iOS",
-		"url" : "/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B.html"
+		"url" : "/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/"
 	}
 	
 	,
@@ -28,7 +28,7 @@
     
 	{
 		"title" : "GCD 基本使用 - iOS",
-		"url" : "/read/2018/09/30/GCD-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8.html"
+		"url" : "/read/2018/09/30/GCD-%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8/"
 	}
 	
 	,
@@ -36,7 +36,7 @@
     
 	{
 		"title" : "复盘T3.1晋级答辩 - 总结",
-		"url" : "/read/2018/08/30/%E5%A4%8D%E7%9B%98T3.1%E6%99%8B%E7%BA%A7%E7%AD%94%E8%BE%A9.html"
+		"url" : "/read/2018/08/30/%E5%A4%8D%E7%9B%98T3.1%E6%99%8B%E7%BA%A7%E7%AD%94%E8%BE%A9/"
 	}
 	
 	,
@@ -44,7 +44,7 @@
     
 	{
 		"title" : "Windows SDK 开发过程复盘与反思 - C++",
-		"url" : "/read/2018/07/31/Windows-SDK-%E5%BC%80%E5%8F%91%E8%BF%87%E7%A8%8B%E5%A4%8D%E7%9B%98%E4%B8%8E%E5%8F%8D%E6%80%9D.html"
+		"url" : "/read/2018/07/31/Windows-SDK-%E5%BC%80%E5%8F%91%E8%BF%87%E7%A8%8B%E5%A4%8D%E7%9B%98%E4%B8%8E%E5%8F%8D%E6%80%9D/"
 	}
 	
 	,
@@ -52,7 +52,7 @@
     
 	{
 		"title" : "从 SVN 到 Git - Git",
-		"url" : "/read/2018/06/30/%E4%BB%8E-SVN-%E5%88%B0-Git.html"
+		"url" : "/read/2018/06/30/%E4%BB%8E-SVN-%E5%88%B0-Git/"
 	}
 	
 	,
@@ -60,7 +60,7 @@
     
 	{
 		"title" : "Chromium智能指针使用指南 - C++",
-		"url" : "/read/2018/05/28/chromium_smart_ptr_use_guide.html"
+		"url" : "/read/2018/05/28/chromium_smart_ptr_use_guide/"
 	}
 	
     
