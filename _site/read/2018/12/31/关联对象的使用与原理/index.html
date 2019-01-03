@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="keyword"  content="ronhu, @ronhu, huteng, 胡腾, Blog, Github, 博客, 互联网, 前端, iOS, 产品, 胡腾的个人网站,  mobile, C++, Git">
+    <meta name="description" content="知行合一">
+    <link rel="shortcut icon" href="/img/favicon.ico">
+
+    <title>关联对象的使用与原理 - ronhu</title>
+
+    <link rel="canonical" href="http://localhost:4000/read/2018/12/31/%E5%85%B3%E8%81%94%E5%AF%B9%E8%B1%A1%E7%9A%84%E4%BD%BF%E7%94%A8%E4%B8%8E%E5%8E%9F%E7%90%86/">
+
+    <!-- Bootstrap Core CSS -->
+    <link rel="stylesheet" href="//cdn.bootcss.com/bootstrap/3.3.6/css/bootstrap.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/ronhu.min.css">
+
+    <!-- Pygments Github CSS -->
+    <link rel="stylesheet" href="/css/syntax.css">
+
+<link rel="alternate" type="application/rss+xml"
+  href="feed.xml" title="ronhu">
+    <!-- Custom Fonts -->
+    <link href="//cdn.bootcss.com/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+        <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+        <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+    <style>
+	.ds-powered-by {
+		display:none !important ;
+	}
+	.ds-post-toolbar .ds-sync{
+		display:none !important ;
+	}
+    </style>
+</head>
+
+
+<body ontouchstart="">
+
+    <!-- Navigation -->
+<nav class="navbar navbar-default navbar-custom navbar-fixed-top">
+    <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header page-scroll">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">ronhu</a>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+            <ul class="nav navbar-nav navbar-right">
+                <li>
+                    <a href="/">首页</a>
+                </li>
+
+<!--                 <li>
+                    <a href="/apps/">应用</a>
+                </li>
+
+                <li>
+                    <a href="/open/">开源</a>
+                </li>
+ -->
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+		<!--
+                
+                <li>
+                    <a href="/about/">关于</a>
+                </li>
+                
+                <li>
+                    <a href="/open/">Open</a>
+                </li>
+                
+                <li>
+                    <a href="/tags/">标签</a>
+                </li>
+                
+		-->
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+
+
+    <!-- Post Header -->
+<header class="intro-header" style="background-image: url('/img/home-bg.jpg')" >
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1">
+                <div class="post-heading">
+                    <div class="tags">
+                        
+                        <a class="tag" href="/tags/#iOS" title="iOS">iOS</a>
+                        
+                    </div>
+                    <h1>关联对象的使用与原理</h1>
+                    
+                    
+                    <h2 class="subheading"></h2>
+                    
+                    <span class="meta">Posted by ronhu on December 31, 2018</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- Post Content -->
+<article>
+  <div class="container" style="overflow-y:hidden;">
+    <div class="row">
+      <div class="col-lg-10 col-lg-offset-1 col-md-10 col-md-offset-1 post-container">
+
+				<h1 id="关联对象的使用与原理">关联对象的使用与原理</h1>
+
+<p>关联对象是做 iOS 开发经常使用的技术之一，合理使用关联对象能发挥代码的更大威力。在实现关联对象的过程中，我们也来挖掘关联对象在 iOS 框架里的实现原理。</p>
+
+<h2 id="为什么需要关联对象">为什么需要关联对象</h2>
+
+<h3 id="property-与-category">Property 与 Category</h3>
+
+<p>Property 在 Class 中声明，编译器会为类默认做两件事：</p>
+
+<ol>
+  <li>生成实例变量。</li>
+  <li><strong>声明并生成</strong>对应的 Getter 方法和 Setter 方法。</li>
+</ol>
+
+<p>若在 Category 中使用 Property，编译器仅会做一件事：</p>
+
+<ol>
+  <li>声明 Getter 方法和 Setter 方法。</li>
+</ol>
+
+<p>注意这里并没有生成实例变量，也没有实现对象的方法。这一点我们写代码很容易验证，在此就不赘述了。</p>
+
+<h3 id="为什么-property-在-category-中能力被削弱">为什么 Property 在 Category 中能力被削弱？</h3>
+
+<p>但是为什么 iOS 会这么设计呢？简单来讲，有两条：</p>
+
+<ol>
+  <li>实例对象生成时，就需要确定内存大小。</li>
+  <li>Category 是运行时加载进内存的，并且可以运行时动态生成。</li>
+</ol>
+
+<p>当 Class 通过 alloc 实例化对象时，操作系统会在堆上为 iOS 分配对应的存储空间。而分配内存的大小，需要根据 Class 中的实例变量来决定，该信息则是存储在对应的类对象上的。例如在 64 位机器上， int 通常分配 4 个字节，指针分配 8 个字节。若 Class 包含一个 int 和一个指针，则它的实例对象占用 12 个字节。分配的顺序也是根据代码中的位置来决定的。</p>
+
+<p>如果 Category 可以生成实例变量，则会导致在不同阶段生成的实例对象占用的内存空间不一致，这基本上颠覆了程序的认知。那么为什么可以在 Category 中使用方法和类方法呢，这得益于 <a href="http://ronhu.me/read/2018/10/30/Objective-C-%E4%B8%AD%E7%9A%84%E7%B1%BB%E5%92%8C%E5%AF%B9%E8%B1%A1%E6%A8%A1%E5%9E%8B/">iOS 的运行时机制</a>：</p>
+
+<ol>
+  <li>Class 在底层是以结构体的形式存在的。在 runtime 机制，当程序初始化，iOS 框架会根据 Class 的结构体定义生成对应的<code>类对象</code>和<code>元类对象</code>。</li>
+  <li>Category 在底层也是以结构体的形式存在的，在程序初始化后，会依一定的规则将 Category 中的方法与类方法加载到类对象和元类对象中。</li>
+</ol>
+
+<h3 id="在-category-中使用成员变量的场景">在 Category 中使用成员变量的场景</h3>
+
+<p>在开发过程中，确实有在 Category 中使用成员变量的场景，如果没有关联对象，我们可能会这么做：<code>使用全局 NSDictionary，记录 self 和对应变量的关系。</code>。思路基本上没有问题，但是在使用过程中，我们要需要考虑内存管理，生成与释放，多线程等场景，如果要完整的实现这套功能，开发量是很大而且容易实现出问题的。幸运的时，iOS 已经为我们实现了这一切，这便是<code>关联对象</code>。</p>
+
+<h2 id="关联对象基本使用">关联对象基本使用</h2>
+
+<h3 id="关联对象的基本使用">关联对象的基本使用</h3>
+
+<p>iOS 上关联对象使用非常简单，常用的就下面三个接口：</p>
+
+<pre><code>// 添加关联对象
+void objc_setAssociatedObject(id object, void *key, id value, objc_AssociationPolicy policy);
+// 获得关联对象
+id objc_getAssociatedObject(id object, const void *key);
+// 移除所有的关联对象
+void objc_removeAssociatedObject(id object);
+</code></pre>
+
+<h3 id="使用注意点">使用注意点</h3>
+
+<p>其中，objc_AssociationPolicy 定义了内存管理的方法：</p>
+
+<pre><code>typedef OBJC_ENUM(uintptr_t, objc_AssociationPolicy) {
+    OBJC_ASSOCIATION_ASSIGN = 0,           /**&lt; Specifies a weak reference to the associated object. */
+    OBJC_ASSOCIATION_RETAIN_NONATOMIC = 1, /**&lt; Specifies a strong reference to the associated object. 
+    OBJC_ASSOCIATION_COPY_NONATOMIC = 3,   /**&lt; Specifies that the associated object is copied. 
+    OBJC_ASSOCIATION_RETAIN = 01401,       /**&lt; Specifies a strong reference to the associated object.
+    OBJC_ASSOCIATION_COPY = 01403          /**&lt; Specifies that the associated object is copied.
+};
+</code></pre>
+
+<p>在 <code>objc_setAssociatedObject</code>和<code>objc_getAssociatedObject</code>方法中，key是声明为 <code>void *</code>，通常我们有几种使用方法：</p>
+
+<pre><code>// 方案1, 直接声明 void * 使用
+static const void *HTNameKey = &amp;HTNameKey;
+id objc_getAssociatedObject(self, HTNameKey);
+// 方案2，使用全局变量的内存地址
+static const char MyKey;
+id objc_getAssociatedObject(self, &amp;MyKey);
+// 方案3，在方法中使用 @selector 或 _cmd 作key
+id objc_getAssociatedObject(self, @selector(name));
+id objc_getAssociatedObject(self, _cmd);
+</code></pre>
+
+<h3 id="使用实例">使用实例</h3>
+
+<p>使用例子，若存在 HTFoo + Key 的 Category，希望在 Category 中存放 key，则可以按照如下实现，可以<strong>模拟</strong>出动态为类添加成员变量的能力了，注意该实现并不会改变实例变量的内存大小。</p>
+
+<pre><code>// 通过关联对象完善 Category 中 Property 的能力
+@interface HTFoo (Key)
+@property (nonatomic, copy) NSString *key;
+@end
+@implementation HTFoo (Key)
+- (NSString *)key {
+    return objc_getAssociatedObject(self, @selector(key));
+}
+- (void)setKey:(NSString *)key {
+    objc_setAssociatedObject(self, @selector(key), key, OBJC_ASSOCIATION_COPY_NONATOMIC);
+}
+@end
+</code></pre>
+
+<h2 id="关联对象实现原理">关联对象实现原理</h2>
+
+<p>说清楚了关联对象的由来和使用方法后，我们通过 runtime 源码来剖析关联对象的实现原理，知晓原理后，在使用关联对象时，我们会更加得心应手。</p>
+
+<h3 id="源码摘录">源码摘录</h3>
+
+<p>在 <a href="https://opensource.apple.com/tarballs/objc4/">runtime 源码</a>中搜索 <code>objc_getAssociatedObject</code> 可以在 <code>objc-runtime.mm</code>中找到实现：</p>
+
+<pre><code>id objc_getAssociatedObject(id object, const void *key) {
+    return _object_get_associative_reference(object, (void *)key);
+}
+
+void objc_setAssociatedObject(id object, const void *key, id value, objc_AssociationPolicy policy) {
+    _object_set_associative_reference(object, (void *)key, value, policy);
+}
+</code></pre>
+
+<p>其中， <code>_object_set_associative_reference</code> 的实现源码摘录如下：</p>
+
+<pre><code>void _object_set_associative_reference(id object, void *key, id value, uintptr_t policy) {
+    // retain the new value (if any) outside the lock.
+    ObjcAssociation old_association(0, nil);
+    // 通过 policy 判断 value 是否需要 retain 或 copy
+    id new_value = value ? acquireValue(value, policy) : nil;
+    {  // 括号的作用是：当 AssociationsManager 离开作用域时，释放自旋锁。
+        AssociationsManager manager;
+        AssociationsHashMap &amp;associations(manager.associations());
+        disguised_ptr_t disguised_object = DISGUISE(object);
+        if (new_value) {
+            // break any existing association.
+            AssociationsHashMap::iterator i = associations.find(disguised_object);
+            if (i != associations.end()) {
+                // secondary table exists
+                ObjectAssociationMap *refs = i-&gt;second;
+                ObjectAssociationMap::iterator j = refs-&gt;find(key);
+                if (j != refs-&gt;end()) {
+                    old_association = j-&gt;second;
+                    j-&gt;second = ObjcAssociation(policy, new_value);
+                } else {
+                    (*refs)[key] = ObjcAssociation(policy, new_value);
+                }
+            } else {
+                // create the new association (first time).
+                ObjectAssociationMap *refs = new ObjectAssociationMap;
+                associations[disguised_object] = refs;
+                (*refs)[key] = ObjcAssociation(policy, new_value);
+                // 标记对象存在关联对象
+                object-&gt;setHasAssociatedObjects();
+            }
+        } else {
+            // setting the association to nil breaks the association.
+            AssociationsHashMap::iterator i = associations.find(disguised_object);
+            if (i !=  associations.end()) {
+                ObjectAssociationMap *refs = i-&gt;second;
+                ObjectAssociationMap::iterator j = refs-&gt;find(key);
+                if (j != refs-&gt;end()) {
+                    old_association = j-&gt;second;
+                    refs-&gt;erase(j);
+                }
+            }
+        }
+    }
+    // release the old value (outside of the lock).
+    if (old_association.hasValue()) ReleaseValue()(old_association);
+}
+</code></pre>
+
+<p>执行步骤为：</p>
+
+<ol>
+  <li>通过 AssociationsManager 获取 AssociationsHashMap。</li>
+  <li>若传入的 value 不为空，则更新对应的 ObjectAssociationMap 与 ObjcAssociation。</li>
+  <li>若传入的 value 为 nil，则删除对应的 ObjcAssociation。</li>
+</ol>
+
+<p><code>_object_get_associative_reference</code>如下：</p>
+
+<pre><code>id _object_get_associative_reference(id object, void *key) {
+    id value = nil;
+    uintptr_t policy = OBJC_ASSOCIATION_ASSIGN;
+    { // 括号的作用是：当 AssociationsManager 离开作用域时，释放自旋锁。
+        AssociationsManager manager;
+        AssociationsHashMap &amp;associations(manager.associations());
+        disguised_ptr_t disguised_object = DISGUISE(object);
+        AssociationsHashMap::iterator i = associations.find(disguised_object);
+        if (i != associations.end()) {
+            ObjectAssociationMap *refs = i-&gt;second;
+            ObjectAssociationMap::iterator j = refs-&gt;find(key);
+            if (j != refs-&gt;end()) {
+                ObjcAssociation &amp;entry = j-&gt;second;
+                value = entry.value();
+                policy = entry.policy();
+                if (policy &amp; OBJC_ASSOCIATION_GETTER_RETAIN) {
+                    objc_retain(value);
+                }
+            }
+        }
+    }
+    if (value &amp;&amp; (policy &amp; OBJC_ASSOCIATION_GETTER_AUTORELEASE)) {
+        objc_autorelease(value);
+    }
+    return value;
+}
+</code></pre>
+
+<p>执行步骤为：</p>
+
+<ol>
+  <li>通过 AssociationsManager 获取 AssociationsHashMap。</li>
+  <li>通过 <code>DISGUISE(object)</code> 获取 ObjectAssociationMap。</li>
+  <li>通过 key 获取 ObjcAssociation。</li>
+  <li>以上任意一步获取不到，均返回 nil。</li>
+</ol>
+
+<h3 id="核心类分析">核心类分析</h3>
+
+<p>核心源码不长，也比较好理解，在其中有四个值得注意的对象，源码可以通过官网下载查阅细节：</p>
+
+<ul>
+  <li>AssociationsManager
+    <ul>
+      <li>线程安全的单例对象，存储了 AssociationsHashMap 的 static 实例对象。</li>
+    </ul>
+  </li>
+  <li>AssociationsHashMap
+    <ul>
+      <li>继承至 <code>std::unordered_map</code>，key 是<code>disguised_ptr_t</code>，value 是 <code>ObjectAssociationMap</code>。</li>
+      <li>其中 key 通过 <code>DISGUISE(object)</code>方法生成，与实例对象地址一一对应。value 是 ObjectAssociationMap， 用于存储实例对象和关联对象的关系。</li>
+    </ul>
+  </li>
+  <li>ObjectAssociationMap
+    <ul>
+      <li>继承至 <code>std::map</code>，key 是 <code>void *</code>，value 是 <code>ObjcAssociation</code>。</li>
+      <li>注意，此处的 key 即是 <code>objc_setAssociatedObject</code> 传入的 <code>void * </code>参数。</li>
+    </ul>
+  </li>
+  <li>ObjcAssociation
+    <ul>
+      <li>存储传入参数的 policy 、value。</li>
+    </ul>
+  </li>
+</ul>
+
+<p>用图示表示关系为：</p>
+
+<p><img src="http://ronhu.me/img/association-object.png" alt="association-object" /></p>
+
+<h3 id="注意细节点">注意细节点</h3>
+
+<p>通过解剖源码，我们得到了如下注意点：</p>
+
+<ol>
+  <li>关联对象的存在并不会影响实例对象的大小。</li>
+  <li>
+    <p>将 value 设置为 nil，会移除掉对应的关联对象 ObjectAssociation。</p>
+  </li>
+  <li>AssociationsManager 通过自旋锁保证 AssociationsHashMap 的读取是线程安全的。</li>
+</ol>
+
+<h2 id="总结">总结</h2>
+
+<p>本文从为什么需要关联对象出发，介绍了关联对象的使用场景和使用方法，以及一些使用时的注意点。最后通过剖析源码实现，从源码层面知晓了关联对象的使用策略与方法。</p>
+
+
+        <hr>
+      </div>
+      
+      <!-- 畅言评论框 start-->
+      <div id="SOHUCS" ></div>
+      <script type="text/javascript">
+      (function(){
+      var appid = ;
+      var conf = ;
+      var width = window.innerWidth || document.documentElement.clientWidth;
+      if (width < 960) {
+      window.document.write('<script id="changyan_mobile_js" charset="utf-8" type="text/javascript" src="https://changyan.sohu.com/upload/mobile/wap-js/changyan_mobile.js?client_id=' + appid + '&conf=' + conf + '"><\/script>'); } else { var loadJs=function(d,a){var c=document.getElementsByTagName("head")[0]||document.head||document.documentElement;var b=document.createElement("script");b.setAttribute("type","text/javascript");b.setAttribute("charset","UTF-8");b.setAttribute("src",d);if(typeof a==="function"){if(window.attachEvent){b.onreadystatechange=function(){var e=b.readyState;if(e==="loaded"||e==="complete"){b.onreadystatechange=null;a()}}}else{b.onload=a}}c.appendChild(b)};loadJs("https://changyan.sohu.com/upload/changyan.js",function(){window.changyan.api.config({appid:appid,conf:conf})}); } })(); </script>
+       <!-- 畅言评论框 end -->
+    </div>
+  </div>
+</article>
+
+
+    <!-- Footer -->
+<footer>
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8 col-lg-offset-2 col-md-10 col-md-offset-1">
+                <ul class="list-inline text-center">
+                    <li>
+                        <a href="/feed.xml">
+                            <span class="fa-stack fa-lg">
+                                <i class="fa fa-circle fa-stack-2x"></i>
+                                <i class="fa fa-rss fa-stack-1x fa-inverse"></i>
+                            </span>
+                        </a>
+                    </li>
+
+                    
+
+                    
+                </ul>
+                <p class="copyright text-muted">Copyright &copy; ronhu 2019</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="//cdn.bootcss.com/jquery/2.2.2/jquery.min.js"></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="//cdn.bootcss.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="/js/ronhu.min.js "></script>
+
+<!-- TODO: only load in tag.html -->
+<script src="/js/jquery.tagcloud.js" type="text/javascript" charset="utf-8"></script>
+<script language="javascript">
+    $.fn.tagcloud.defaults = {
+        //size: {start: 1, end: 1, unit: 'em'},
+        color: {start: '#bbbbee', end: '#0085a1'},
+    };
+    $(function () {
+        $('#tag_cloud a').tagcloud();
+    });
+</script>
+
+<!-- async load function -->
+<script>
+    function async(u, c) {
+      var d = document, t = 'script',
+          o = d.createElement(t),
+          s = d.getElementsByTagName(t)[0];
+      o.src = u;
+      if (c) { o.addEventListener('load', function (e) { c(null, e); }, false); }
+      s.parentNode.insertBefore(o, s);
+    }
+</script>
+
+<!-- Highlight.js -->
+<script>
+    async("//cdn.bootcss.com/highlight.js/9.4.0/highlight.min.js",function(){
+        hljs.initHighlightingOnLoad();
+    })
+</script>
+<link href="//cdn.bootcss.com/highlight.js/9.4.0/styles/github.min.css" rel="stylesheet">
+
+<div class="cb-search-tool" style="position: fixed; top: 0px ; bottom: 0px; left: 0px; right:  0px;
+      opacity: 0.95; background-color: #111111; z-index: 9999; display: none;">
+    <input type="text" class="form-control cb-search-content" id="cb-search-content" style="position: fixed; top: 60px" placeholder="文章标题 日期 标签" >
+
+    <div style="position: fixed; top: 16px; right: 16px;">
+        <img src="/search/img/cb-close.png"  id="cb-close-btn"/>
+    </div>
+</div>
+
+<div style="position: fixed; right: 16px; bottom: 20px;">
+    <img src="/search/img/cb-search.png"  id="cb-search-btn"  title="双击ctrl试一下"/>
+</div>
+
+<link rel="stylesheet" href="/search/css/cb-search.css">
+
+<script src="/search/js/bootstrap3-typeahead.min.js"></script>
+<script src="/search/js/cb-search.js"></script>
+
+<script>
+$(document).ready(function(){
+  //代码高亮自定义
+  $("code").each(function(){
+    var content =  $(this).html().replace(/\n/g,"\n</li><li>");
+    if(content.indexOf('<li>') == -1){
+      //适配`abc`，放行
+    }else{
+        $(this).html("<ul><li>" + content.substring(0, content.length - 4) +"</ul>"); //适配```
+    }
+  });
+})
+</script>
+
+<div style="display:none;">
+  <script src="//s19.cnzz.com/z_stat.php?id=1000478693&web_id=1000478693" language="JavaScript"></script>
+</div>
+
+
+</body>
+
+</html>
