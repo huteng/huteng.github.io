@@ -124,7 +124,7 @@ void objc_setAssociatedObject(id object, const void *key, id value, objc_Associa
 
 其中， `_object_set_associative_reference` 的实现源码摘录如下：
 
-```
+```c++
 void _object_set_associative_reference(id object, void *key, id value, uintptr_t policy) {
     // retain the new value (if any) outside the lock.
     ObjcAssociation old_association(0, nil);
@@ -181,7 +181,7 @@ void _object_set_associative_reference(id object, void *key, id value, uintptr_t
 
 `_object_get_associative_reference`如下：
 
-```
+```c++
 id _object_get_associative_reference(id object, void *key) {
     id value = nil;
     uintptr_t policy = OBJC_ASSOCIATION_ASSIGN;

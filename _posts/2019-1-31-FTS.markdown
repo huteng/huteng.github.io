@@ -1,0 +1,166 @@
+---
+layout: post
+category: "read"
+title:  "FTS"
+tags: [计算机基础]
+---
+
+FTS 是针对 SQLite 的全文搜索模块。
+
+## FTS4、FTS3
+
+FTS4 与 FTS3 共享大部分代码，主要差异为：
+
+* FTS4 查询性能显著提高。
+* FTS4 支持 matchinfo() 函数的附加选项。
+* FTS4 占用更多空间，通常为2%-10%。原因是 FTS4 为了提高性能和支持 matchinfo()，创建了额外的影子表。
+* FTS4提供钩子（压缩和解压缩选项），允许数据以压缩格式存储，从而减少磁盘使用量和IO。
+
+## 创建与销毁 FTS
+
+```C++
+// 创建 fts4，不填参数默认存在 content 列
+CREATE VIRTUAL TABLE data USING fts4();
+// 支持指定分词器 tokenize，最多指定一个分词器
+CREATE VIRTUAL TABLE names USING fts3(a, b, tokenize=icu en_AU);
+// 销毁 FTS
+DROP Table data;
+```
+
+## 填充 FTS
+
+1. FTS 存在主键`rowid`、别名 `docid`。主键不可重复。
+
+```c++
+// Create an FTS table
+CREATE VIRTUAL TABLE pages USING fts4(title, body);
+// Insert a row with a specific docid value.
+INSERT INTO pages(docid, title, body) VALUES(53, 'Home Page', 'SQLite is a software...');
+```
+
+2. FTS 维护着倒排索引。为加速插入、更新、删除，可能存在多颗B-Tree。可通过命令将多颗B-Tree合并，提高搜索速度：
+
+```c++
+INSERT INTO docs(docs) VALUES('optimize');
+```
+
+## FTS 查询
+
+```c++
+CREATE VIRTUAL TABLE mail USING fts3(subject, body);
+
+SELECT * FROM mail WHERE rowid = 15;                // Fast. Rowid lookup.
+SELECT * FROM mail WHERE body MATCH 'sqlite';       // Fast. Full-text query.
+SELECT * FROM mail WHERE mail MATCH 'search';       // Fast. Full-text query.
+SELECT * FROM mail WHERE rowid BETWEEN 15 AND 20;   // Fast. Rowid lookup.
+SELECT * FROM mail WHERE subject = 'database';      // Slow. Linear scan.
+SELECT * FROM mail WHERE subject MATCH 'database';  // Fast. Full-text query.
+SELECT * FROM mail WHERE mail    MATCH 'software';  // Selects rows 1, 2
+```
+
+1. 分词器决定全文搜索是否区分大小写，需注意。
+2. FTS 表存在隐藏列，名称同表名，一般不使用，但是需注意。
+
+## FTS 表特点
+
+* FTS表为虚拟表，其特点为不可创建索引或触发器、也不能用ALTER创建额外列。
+* FTS列不可指定类型，都将转换为TEXT类型存入。
+* FTS表允许使用特殊别名`docid`来引用所有虚拟表所支持的rowid列。
+* FTS MATCH运算符支持基于内置全文索引的查询。
+* FTS辅助函数，snippet()，offset()和matchinfo() 可用于支持全文查询。
+* 每个FTS表都有一个与表本身具有相同名称的隐藏列。隐藏列的每行中包含的值是一个blob，它只用作MATCH运算符的左操作数，或者作为其中一个FTS辅助函数的最左边参数。
+
+```
+// 指定命令开启 FTS
+-DSQLITE_ENABLE_FTS3
+-DSQLITE_ENABLE_FTS3_PARENTHESIS
+// 启用ICU
+-DSQLITE_ENABLE_ICU
+```
+
+## FTS Match 类型
+
+* 指定字符串以及前缀匹配。
+
+  ```C++
+  CREATE VIRTUAL TABLE docs USING fts3(title, body);
+  // 结果仅包含 linux
+  SELECT * FROM docs WHERE docs MATCH 'linux';
+  // 结果包含 linux,linlear,linker 等
+  SELECT * FROM docs WHERE docs MATCH 'lin*';
+  // 匹配title为linux，problems在title或body
+  SELECT * FROM docs WHERE docs MATCH 'title:linux problems';
+  // 匹配title为linux, body为driver
+  SELECT * FROM docs WHERE body MATCH 'title:linux driver';
+  // 仅FTS4可用，以 linux 开头
+  SELECT * FROM docs WHERE docs MATCH '^linux';
+  ```
+
+* 双引号指定语句查询。
+
+  ```c++
+  // 结果包含语句 "linux applications"
+  SELECT * FROM docs WHERE docs MATCH '"linux applications"';
+  // 结果包含语句 "linux applications"、"link apprentice" 等
+  SELECT * FROM docs WHERE docs MATCH '"lin* app*"';
+  ```
+
+* NEAR 查询。默认查询相邻度小于等于10的语句。可通过 NEAR/N 来制定查询相邻的数值。一个查询语句中可出现多个 NEAR。
+
+  ```C++
+  CREATE VIRTUAL TABLE docs USING fts4();
+  INSERT INTO docs VALUES('SQLite is an ACID compliant embedded relational database management system');
+  // match ok
+  SELECT * FROM docs WHERE docs MATCH 'sqlite NEAR database';
+  // match ok
+  SELECT * FROM docs WHERE docs MATCH 'database NEAR/6 sqlite';
+  // match faild
+  SELECT * FROM docs WHERE docs MATCH 'database NEAR/5 sqlite';
+  // match ok
+  SELECT * FROM docs WHERE docs MATCH 'database NEAR/2 "ACID compliant"';
+  ```
+## FTS 数据结构
+
+FTS 共有五张影子表，用于支持全文检索功能。分别为：
+
+```C++
+// FTS4 声明
+CREATE VIRTUAL TABLE abc USING fts4(a NUMBER, b TEXT, c);
+// %_content 表结构，注意忽略了字段类型
+CREATE TABLE abc_content(docid INTEGER PRIMARY KEY, c0a, c1b, c2c);
+// %_segments
+CREATE TABLE %_segments(
+  blockid INTEGER PRIMARY KEY,       // B-tree node id
+  block blob                         // B-tree node data
+);
+// %_segdir
+CREATE TABLE %_segdir(
+  level INTEGER,
+  idx INTEGER,
+  // Blockid of first node in %_segments
+  start_block INTEGER,               
+  // Blockid of last leaf node in %_segments    
+  leaves_end_block INTEGER,
+  // Blockid of last node in %_segments
+  end_block INTEGER,
+  // B-tree root node    
+  root BLOB,                         
+  PRIMARY KEY(level, idx)
+);
+// %_stat 表结构，FTS4专有，FTS3没有
+CREATE TABLE %_stat(
+  id INTEGER PRIMARY KEY, 
+  value BLOB
+);
+// %_docsize 表结构，FTS4专有，FTS3没有
+CREATE TABLE %_docsize(
+  docid INTEGER PRIMARY KEY,
+  size BLOB
+);
+```
+
+## 参考文档
+
+https://cloud.tencent.com/developer/section/1419762
+
+https://www.sqlite.org/fts3.html
